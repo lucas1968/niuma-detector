@@ -1,0 +1,2444 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>牛马检测器 - 检测班味，拯救人味。</title>
+  <style>
+    :root {
+      --cream: #fff5da;
+      --paper: #fffaf0;
+      --red: #e9454f;
+      --red-dark: #b52235;
+      --green: #57c766;
+      --green-deep: #137444;
+      --blue: #17345f;
+      --blue-soft: #2f70bf;
+      --yellow: #ffc83d;
+      --gold: #d78a14;
+      --ink: #101b2d;
+      --ink-soft: #35465b;
+      --sky: #9bd8ff;
+      --mint: #c4f1bc;
+      --line: rgba(16, 27, 45, .16);
+      --shadow: 0 8px 0 rgba(16, 27, 45, .95), 0 18px 30px rgba(16, 27, 45, .18);
+      --pixel-shadow: 4px 0 0 var(--ink), -4px 0 0 var(--ink), 0 4px 0 var(--ink), 0 -4px 0 var(--ink);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--cream);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      overflow-x: hidden;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      letter-spacing: 0;
+      background:
+        linear-gradient(90deg, rgba(16, 27, 45, .045) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(rgba(16, 27, 45, .045) 1px, transparent 1px) 0 0 / 44px 44px,
+        radial-gradient(circle at 12% 10%, rgba(255, 200, 61, .65), transparent 24rem),
+        radial-gradient(circle at 88% 14%, rgba(87, 199, 102, .34), transparent 21rem),
+        linear-gradient(135deg, #fff5d9 0%, #d9f7bd 50%, #aadaff 100%);
+    }
+
+    button,
+    a {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    canvas,
+    video {
+      display: block;
+      max-width: 100%;
+    }
+
+    .page-shell {
+      isolation: isolate;
+      position: relative;
+      width: min(1520px, calc(100% - 34px));
+      margin: 0 auto;
+      padding: 24px 0 30px;
+    }
+
+    .office-map {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+    }
+
+    .office-map::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .28;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 34px, rgba(255, 250, 240, .7) 34px 38px),
+        repeating-linear-gradient(90deg, transparent 0 34px, rgba(255, 250, 240, .56) 34px 38px);
+      mask-image: linear-gradient(to bottom, black, transparent 86%);
+    }
+
+    .map-tile {
+      position: absolute;
+      border: 4px solid rgba(16, 27, 45, .72);
+      border-radius: 5px;
+      opacity: .26;
+      box-shadow: 5px 5px 0 rgba(16, 27, 45, .28);
+    }
+
+    .tile-desk {
+      top: 11%;
+      left: 4%;
+      width: 176px;
+      height: 92px;
+      background:
+        linear-gradient(90deg, transparent 0 20%, var(--ink) 20% 24%, transparent 24% 76%, var(--ink) 76% 80%, transparent 80%),
+        linear-gradient(#f5b062 0 61%, transparent 61%);
+    }
+
+    .tile-desk::after {
+      content: "";
+      position: absolute;
+      top: 15px;
+      right: 22px;
+      width: 44px;
+      height: 28px;
+      border: 4px solid var(--ink);
+      border-bottom-width: 8px;
+      background: var(--sky);
+    }
+
+    .tile-plant {
+      right: 6%;
+      top: 17%;
+      width: 76px;
+      height: 112px;
+      background:
+        linear-gradient(135deg, transparent 0 34%, var(--green-deep) 35% 43%, transparent 44%),
+        linear-gradient(45deg, transparent 0 39%, var(--green) 40% 52%, transparent 53%),
+        linear-gradient(var(--gold), var(--gold)) 50% 84% / 46px 25px no-repeat;
+    }
+
+    .tile-cup {
+      left: 8%;
+      bottom: 14%;
+      width: 84px;
+      height: 76px;
+      border-radius: 6px 6px 24px 24px;
+      background:
+        linear-gradient(90deg, transparent 0 67%, var(--cream) 67% 85%, transparent 85%) 0 49% / 100% 40% no-repeat,
+        linear-gradient(#fef7e8 0 25%, #d47d38 26% 31%, #fef7e8 32%);
+    }
+
+    .tile-badge {
+      right: 11%;
+      bottom: 8%;
+      width: 105px;
+      height: 136px;
+      background:
+        linear-gradient(var(--red), var(--red)) 50% 17px / 42px 11px no-repeat,
+        linear-gradient(var(--ink), var(--ink)) 50% 0 / 10px 33px no-repeat,
+        linear-gradient(135deg, #fff9ed, #ffd974);
+    }
+
+    .tile-badge::after {
+      content: "KPI";
+      position: absolute;
+      inset: 48px 9px auto;
+      border-top: 5px solid var(--red);
+      color: var(--blue);
+      padding-top: 10px;
+      font: 900 24px/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+      text-align: center;
+    }
+
+    .tile-chair {
+      right: 25%;
+      top: 55%;
+      width: 110px;
+      height: 124px;
+      border-color: rgba(16, 27, 45, .6);
+      background:
+        linear-gradient(var(--blue), var(--blue)) 50% 76% / 10px 34px no-repeat,
+        linear-gradient(90deg, transparent 0 17%, var(--blue) 18% 26%, transparent 27% 74%, var(--blue) 75% 83%, transparent 84%) 50% 100% / 72px 20px no-repeat,
+        linear-gradient(#ef5662, #c93b4a) 50% 18px / 60px 75px no-repeat;
+    }
+
+    .topbar {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      align-items: start;
+      gap: 22px;
+      margin-bottom: 18px;
+    }
+
+    .brand-panel,
+    .dex-strip,
+    .panel,
+    .dialogue-box {
+      position: relative;
+      border: 4px solid var(--ink);
+      border-radius: var(--radius);
+      background: rgba(255, 250, 240, .92);
+      box-shadow: var(--shadow);
+    }
+
+    .brand-panel {
+      overflow: hidden;
+      min-height: 150px;
+      padding: 19px 24px 22px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, .78), transparent 44%),
+        repeating-linear-gradient(90deg, rgba(16, 27, 45, .07) 0 5px, transparent 5px 18px),
+        linear-gradient(120deg, var(--paper), #fff0b3 60%, #d8ffd0);
+    }
+
+    .brand-panel::before,
+    .panel::before,
+    .dialogue-box::before,
+    .dex-strip::before {
+      content: "";
+      pointer-events: none;
+      position: absolute;
+      inset: 5px;
+      border: 2px dashed rgba(16, 27, 45, .25);
+      border-radius: 4px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 11px;
+      color: var(--paper);
+      border: 3px solid var(--ink);
+      border-radius: 999px;
+      background: var(--blue);
+      box-shadow: 3px 3px 0 var(--ink);
+      font-size: .84rem;
+      font-weight: 900;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--paper);
+      background: var(--green);
+      box-shadow: 0 0 0 2px var(--green-deep);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 4px;
+      color: var(--red);
+      font-size: clamp(2.4rem, 5vw, 5.35rem);
+      line-height: .98;
+      font-weight: 1000;
+      text-shadow: 4px 0 0 var(--ink), 0 4px 0 var(--ink), 4px 4px 0 var(--yellow);
+    }
+
+    .slogan {
+      max-width: 620px;
+      margin: 0;
+      color: var(--blue);
+      font-size: clamp(1rem, 1.5vw, 1.35rem);
+      font-weight: 900;
+    }
+
+    .dex-strip {
+      width: min(485px, 100%);
+      min-height: 150px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 13px;
+      align-content: center;
+      padding: 19px;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, .28), transparent),
+        var(--red);
+      color: var(--paper);
+    }
+
+    .dex-topline,
+    .status-leds,
+    .mini-stats,
+    .button-row,
+    .panel-head,
+    .metric-label,
+    .vital-head,
+    .share-actions {
+      display: flex;
+      align-items: center;
+    }
+
+    .dex-topline {
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 1000;
+    }
+
+    .status-leds {
+      gap: 8px;
+    }
+
+    .led {
+      width: 16px;
+      height: 16px;
+      border: 3px solid var(--ink);
+      border-radius: 50%;
+      box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .45);
+    }
+
+    .led:nth-child(1) {
+      background: var(--sky);
+    }
+
+    .led:nth-child(2) {
+      background: var(--yellow);
+    }
+
+    .led:nth-child(3) {
+      background: var(--green);
+    }
+
+    .dex-message {
+      position: relative;
+      min-height: 54px;
+      margin: 0;
+      padding: 12px 14px;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      color: var(--ink);
+      background: #d4f6ff;
+      font-weight: 900;
+      box-shadow: inset -4px -4px 0 rgba(23, 52, 95, .18);
+    }
+
+    .mini-stats {
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mini-stat {
+      min-width: 110px;
+      display: grid;
+      gap: 5px;
+      flex: 1;
+      padding: 8px 10px;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      color: var(--ink);
+      background: var(--paper);
+      box-shadow: 3px 3px 0 rgba(16, 27, 45, .8);
+    }
+
+    .mini-stat strong {
+      font: 1000 1.2rem/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+
+    .mini-stat small {
+      color: var(--ink-soft);
+      font-weight: 900;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(370px, .95fr) minmax(420px, 1.05fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      min-width: 0;
+      padding: 18px;
+    }
+
+    .panel-head {
+      position: relative;
+      z-index: 1;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 13px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      color: var(--blue);
+      font-size: clamp(1.12rem, 1.8vw, 1.5rem);
+      line-height: 1.15;
+      font-weight: 1000;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      min-height: 28px;
+      padding: 4px 10px;
+      border: 3px solid var(--ink);
+      border-radius: 999px;
+      color: var(--ink);
+      background: var(--yellow);
+      box-shadow: 3px 3px 0 var(--ink);
+      font-size: .78rem;
+      font-weight: 1000;
+      white-space: nowrap;
+    }
+
+    .badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 2px solid var(--ink);
+      background: var(--red);
+    }
+
+    .camera-panel {
+      overflow: hidden;
+      background:
+        linear-gradient(130deg, rgba(255, 255, 255, .92), rgba(255, 241, 196, .93)),
+        var(--paper);
+    }
+
+    .camera-stage {
+      position: relative;
+      z-index: 1;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border: 4px solid var(--ink);
+      border-radius: 6px;
+      background:
+        linear-gradient(90deg, rgba(16, 27, 45, .18) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(rgba(16, 27, 45, .18) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(145deg, #072441, #1d5d84 50%, #60a87a);
+      box-shadow: inset 0 0 0 4px rgba(255, 250, 240, .2), 0 6px 0 rgba(16, 27, 45, .85);
+    }
+
+    .camera-stage::before {
+      content: "CAMERA STANDBY";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(255, 250, 240, .74);
+      font: 1000 clamp(1rem, 2vw, 1.55rem)/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+      text-shadow: 3px 3px 0 rgba(16, 27, 45, .8);
+    }
+
+    .camera-stage.live::before {
+      opacity: 0;
+    }
+
+    #cameraFeed {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      filter: saturate(1.05) contrast(1.03);
+    }
+
+    .camera-tint,
+    .scan-line,
+    .finder,
+    .target-box {
+      pointer-events: none;
+      position: absolute;
+      z-index: 2;
+    }
+
+    .camera-tint {
+      inset: 0;
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .1) 0 2px, transparent 2px 7px),
+        linear-gradient(90deg, rgba(255, 200, 61, .12), transparent 30%, transparent 70%, rgba(87, 199, 102, .12));
+      mix-blend-mode: screen;
+    }
+
+    .camera-stage.scanning .camera-tint {
+      animation: flicker .34s steps(2, end) infinite;
+    }
+
+    .scan-line {
+      inset: -18% 0 auto;
+      height: 18%;
+      opacity: 0;
+      background: linear-gradient(to bottom, transparent, rgba(112, 255, 162, .86), transparent);
+      mix-blend-mode: screen;
+    }
+
+    .camera-stage.scanning .scan-line {
+      opacity: 1;
+      animation: scan 1.22s linear infinite;
+    }
+
+    .finder {
+      inset: 14px;
+      border: 2px solid rgba(255, 250, 240, .18);
+    }
+
+    .finder::before,
+    .finder::after {
+      content: "";
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      border-color: var(--yellow);
+      border-style: solid;
+    }
+
+    .finder::before {
+      top: -2px;
+      left: -2px;
+      border-width: 5px 0 0 5px;
+    }
+
+    .finder::after {
+      right: -2px;
+      bottom: -2px;
+      border-width: 0 5px 5px 0;
+    }
+
+    .target-box {
+      min-width: 104px;
+      min-height: 64px;
+      border: 3px solid var(--mint);
+      color: var(--paper);
+      filter: drop-shadow(2px 2px 0 rgba(16, 27, 45, .86));
+      transition: inset .5s ease, transform .5s ease, border-color .3s ease;
+    }
+
+    .target-box span {
+      position: absolute;
+      left: -3px;
+      bottom: calc(100% + 5px);
+      max-width: min(225px, 64vw);
+      padding: 5px 7px;
+      border: 2px solid var(--ink);
+      background: var(--green-deep);
+      font-size: clamp(.62rem, 1vw, .77rem);
+      line-height: 1.22;
+      font-weight: 1000;
+      white-space: normal;
+    }
+
+    .target-face {
+      inset: 18% 13% auto auto;
+      width: 28%;
+      height: 49%;
+      border-color: var(--yellow);
+    }
+
+    .target-desk {
+      inset: auto auto 13% 9%;
+      width: 42%;
+      height: 25%;
+    }
+
+    .target-light {
+      inset: 12% auto auto 17%;
+      width: 24%;
+      height: 22%;
+      border-color: var(--sky);
+    }
+
+    .target-plant {
+      inset: auto 9% 11% auto;
+      width: 16%;
+      height: 26%;
+      border-color: #93ff80;
+    }
+
+    .target-chair {
+      inset: auto auto 18% 34%;
+      width: 19%;
+      height: 33%;
+      border-color: #ffb66d;
+    }
+
+    .camera-meta {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .scanner-log {
+      min-height: 64px;
+      display: grid;
+      align-items: center;
+      padding: 12px 14px;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      color: #d4ffd9;
+      background:
+        linear-gradient(90deg, rgba(87, 199, 102, .17) 1px, transparent 1px) 0 0 / 14px 14px,
+        #10263e;
+      font: 900 .92rem/1.45 ui-monospace, "SFMono-Regular", Menlo, monospace;
+      box-shadow: inset 0 0 0 3px rgba(255, 250, 240, .1);
+    }
+
+    .button-row {
+      position: relative;
+      z-index: 1;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .game-button {
+      position: relative;
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex: 1 1 136px;
+      padding: 10px 13px;
+      border: 3px solid var(--ink);
+      border-radius: 6px;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 1000;
+      text-align: center;
+      text-decoration: none;
+      background: var(--yellow);
+      box-shadow: 0 5px 0 var(--ink), inset -4px -4px 0 rgba(215, 138, 20, .24);
+      transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    }
+
+    .game-button:hover,
+    .game-button:focus-visible {
+      filter: saturate(1.1);
+      transform: translateY(-3px) scale(1.01);
+      box-shadow: 0 8px 0 var(--ink), 0 12px 18px rgba(16, 27, 45, .16), inset -4px -4px 0 rgba(215, 138, 20, .24);
+    }
+
+    .game-button:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 var(--ink), inset 4px 4px 0 rgba(16, 27, 45, .14);
+    }
+
+    .game-button:disabled {
+      cursor: wait;
+      filter: grayscale(.5);
+      opacity: .66;
+      transform: none;
+    }
+
+    .game-button.red {
+      color: var(--paper);
+      background: var(--red);
+      box-shadow: 0 5px 0 var(--ink), inset -4px -4px 0 rgba(128, 18, 38, .28);
+    }
+
+    .game-button.green {
+      background: var(--green);
+    }
+
+    .game-button.blue {
+      color: var(--paper);
+      background: var(--blue-soft);
+      box-shadow: 0 5px 0 var(--ink), inset -4px -4px 0 rgba(10, 36, 76, .28);
+    }
+
+    .button-icon {
+      width: 19px;
+      height: 19px;
+      display: inline-grid;
+      place-items: center;
+      border: 3px solid currentColor;
+      border-radius: 50%;
+      font: 1000 11px/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+
+    .score-panel {
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, .8), transparent 50%),
+        linear-gradient(180deg, #fffaf0, #fff0bd);
+    }
+
+    .rating-card {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 14px;
+      align-items: center;
+      min-height: 112px;
+      margin-bottom: 15px;
+      padding: 13px;
+      border: 4px solid var(--ink);
+      border-radius: 6px;
+      color: var(--paper);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, .14) 0 22%, transparent 22% 100%),
+        var(--blue);
+      box-shadow: inset -6px -6px 0 rgba(0, 0, 0, .18), 5px 5px 0 var(--ink);
+    }
+
+    .rating-rank {
+      width: 88px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 4px solid var(--ink);
+      border-radius: 6px;
+      color: var(--ink);
+      background: var(--yellow);
+      box-shadow: inset -6px -6px 0 rgba(215, 138, 20, .22), 4px 4px 0 rgba(255, 250, 240, .56);
+      font: 1000 clamp(2rem, 4vw, 3.55rem)/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+
+    .rating-copy strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #fff0a6;
+      font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+      line-height: 1.2;
+    }
+
+    .rating-copy p {
+      margin: 0;
+      line-height: 1.45;
+      font-weight: 800;
+    }
+
+    .metrics {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 11px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 5px;
+    }
+
+    .metric-label {
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--blue);
+      font-size: .93rem;
+      font-weight: 1000;
+    }
+
+    .metric-value {
+      min-width: 54px;
+      color: var(--red-dark);
+      font: 1000 1.12rem/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+      text-align: right;
+    }
+
+    .meter {
+      position: relative;
+      height: 22px;
+      overflow: hidden;
+      padding: 3px;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      background:
+        repeating-linear-gradient(90deg, rgba(16, 27, 45, .12) 0 12px, rgba(255, 255, 255, .3) 12px 16px),
+        #fff7da;
+      box-shadow: inset 3px 3px 0 rgba(16, 27, 45, .12);
+    }
+
+    .meter-fill {
+      width: 0;
+      height: 100%;
+      border-radius: 2px;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, .32), transparent),
+        var(--bar, var(--green));
+      box-shadow: inset -3px 0 0 rgba(16, 27, 45, .18);
+      transition: width 1s cubic-bezier(.18, .78, .24, 1);
+    }
+
+    .attribute-row {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .attribute {
+      min-width: 0;
+      padding: 9px 10px;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      color: var(--paper);
+      background: var(--blue);
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+
+    .attribute span,
+    .attribute strong {
+      display: block;
+    }
+
+    .attribute span {
+      margin-bottom: 4px;
+      color: #baf4ff;
+      font-size: .74rem;
+      font-weight: 1000;
+    }
+
+    .attribute strong {
+      overflow-wrap: anywhere;
+      font: 1000 clamp(1rem, 1.6vw, 1.25rem)/1.1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+
+    .lower-grid {
+      display: grid;
+      grid-template-columns: minmax(365px, .98fr) minmax(365px, .98fr) minmax(300px, .72fr);
+      gap: 18px;
+      margin-top: 18px;
+      align-items: stretch;
+    }
+
+    .environment-panel {
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, .72), transparent 45%),
+        #ddffc9;
+    }
+
+    .compendium {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-bottom: 13px;
+    }
+
+    .dex-entry,
+    .vital {
+      min-width: 0;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      box-shadow: 3px 3px 0 rgba(16, 27, 45, .88);
+    }
+
+    .dex-entry {
+      padding: 9px;
+      background: rgba(255, 250, 240, .92);
+    }
+
+    .dex-entry span,
+    .dex-entry strong {
+      display: block;
+    }
+
+    .dex-entry span {
+      margin-bottom: 4px;
+      color: var(--ink-soft);
+      font-size: .77rem;
+      font-weight: 1000;
+    }
+
+    .dex-entry strong {
+      color: var(--blue);
+      font: 1000 1.18rem/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+
+    .advice-block {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 10px;
+    }
+
+    .advice-block h3,
+    .share-copy h3 {
+      margin: 0;
+      color: var(--red-dark);
+      font-size: .96rem;
+      font-weight: 1000;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .chip-list li {
+      max-width: 100%;
+      padding: 6px 9px;
+      border: 3px solid var(--ink);
+      border-radius: 999px;
+      color: var(--ink);
+      background: var(--paper);
+      box-shadow: 3px 3px 0 rgba(16, 27, 45, .82);
+      font-size: .82rem;
+      line-height: 1.25;
+      font-weight: 900;
+    }
+
+    .vitals-panel {
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, .72), transparent 48%),
+        #d6efff;
+    }
+
+    .disclaimer {
+      position: relative;
+      z-index: 1;
+      margin: -2px 0 12px;
+      color: var(--ink-soft);
+      font-size: .78rem;
+      line-height: 1.45;
+      font-weight: 900;
+    }
+
+    .vitals {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-bottom: 12px;
+    }
+
+    .vital {
+      padding: 9px;
+      background: rgba(255, 250, 240, .94);
+    }
+
+    .vital-head {
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--blue);
+      font-size: .78rem;
+      font-weight: 1000;
+    }
+
+    .tiny-meter {
+      height: 13px;
+      overflow: hidden;
+      border: 2px solid var(--ink);
+      border-radius: 3px;
+      background: #fff4cf;
+    }
+
+    .tiny-meter b {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--bar, var(--red));
+      transition: width 1s ease;
+    }
+
+    .care-card {
+      position: relative;
+      z-index: 1;
+      min-height: 116px;
+      padding: 12px;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      color: var(--paper);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, .16), transparent),
+        var(--green-deep);
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+
+    .care-card h3 {
+      margin: 0 0 7px;
+      color: #fff0a6;
+      font-size: .97rem;
+      font-weight: 1000;
+    }
+
+    .care-card p {
+      margin: 0;
+      font-size: .92rem;
+      line-height: 1.55;
+      font-weight: 900;
+    }
+
+    .share-panel {
+      overflow: hidden;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, .72), transparent 48%),
+        #ffe5ac;
+    }
+
+    .share-preview {
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+      width: min(100%, 310px);
+      margin: 0 auto 13px;
+      aspect-ratio: 4 / 5;
+      border: 4px solid var(--ink);
+      border-radius: 7px;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, .14) 1px, transparent 1px) 0 0 / 20px 20px,
+        linear-gradient(#17345f, #101b2d);
+      box-shadow: 6px 6px 0 var(--ink);
+    }
+
+    #shareCanvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: transparent;
+    }
+
+    .share-copy {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 8px;
+      color: var(--blue);
+      font-weight: 900;
+    }
+
+    .share-copy p {
+      margin: 0;
+      font-size: .88rem;
+      line-height: 1.45;
+    }
+
+    .share-actions {
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+
+    .share-actions .game-button {
+      flex-basis: 118px;
+      min-height: 44px;
+      padding: 8px 10px;
+    }
+
+    .dialogue-box {
+      min-height: 112px;
+      display: grid;
+      grid-template-columns: 66px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      margin-top: 18px;
+      padding: 18px 21px;
+      color: var(--paper);
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, .07) 0 5px, transparent 5px 17px),
+        var(--blue);
+    }
+
+    .dialogue-avatar {
+      position: relative;
+      z-index: 1;
+      width: 62px;
+      height: 62px;
+      border: 4px solid var(--ink);
+      border-radius: 7px;
+      background:
+        linear-gradient(90deg, transparent 0 20%, var(--ink) 20% 28%, transparent 28% 72%, var(--ink) 72% 80%, transparent 80%) 50% 28% / 100% 10px no-repeat,
+        linear-gradient(90deg, transparent 0 30%, var(--red) 30% 70%, transparent 70%) 50% 68% / 100% 8px no-repeat,
+        var(--yellow);
+      box-shadow: 4px 4px 0 #fff0a6;
+    }
+
+    .dialogue-text {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      margin: 0;
+      font-size: clamp(1rem, 1.6vw, 1.32rem);
+      line-height: 1.5;
+      font-weight: 1000;
+    }
+
+    .dialogue-text::after {
+      content: "";
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-left: 8px;
+      border-right: 4px solid var(--yellow);
+      border-bottom: 4px solid var(--yellow);
+      transform: rotate(45deg) translateY(-3px);
+      animation: cursor 1s steps(2, end) infinite;
+    }
+
+    .privacy {
+      display: grid;
+      gap: 4px;
+      margin: 14px 3px 0;
+      color: var(--blue);
+      font-size: .82rem;
+      line-height: 1.5;
+      font-weight: 1000;
+    }
+
+    .easter-trigger-hint {
+      position: absolute;
+      top: 177px;
+      right: clamp(6px, 1.4vw, 19px);
+      z-index: 0;
+      width: 74px;
+      padding: 8px 4px;
+      border: 3px solid rgba(16, 27, 45, .42);
+      border-radius: 4px;
+      opacity: .48;
+      color: var(--red-dark);
+      background: rgba(255, 250, 240, .56);
+      text-align: center;
+      rotate: 4deg;
+      font-size: .68rem;
+      line-height: 1.2;
+      font-weight: 1000;
+      box-shadow: 3px 3px 0 rgba(16, 27, 45, .27);
+    }
+
+    .easter-wall {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      opacity: 0;
+      visibility: hidden;
+      background: rgba(16, 27, 45, .62);
+      transition: opacity .22s ease, visibility .22s ease;
+    }
+
+    .easter-wall.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .wall-board {
+      position: relative;
+      width: min(820px, 100%);
+      min-height: min(620px, calc(100vh - 36px));
+      overflow: hidden;
+      padding: 22px;
+      border: 5px solid var(--ink);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(16, 27, 45, .08) 1px, transparent 1px) 0 0 / 31px 31px,
+        linear-gradient(rgba(16, 27, 45, .08) 1px, transparent 1px) 0 0 / 31px 31px,
+        #ffd66f;
+      box-shadow: 0 10px 0 var(--ink), 0 30px 70px rgba(0, 0, 0, .35);
+    }
+
+    .wall-board h2 {
+      max-width: calc(100% - 76px);
+      margin: 0 0 18px;
+      color: var(--red);
+      font-size: clamp(1.45rem, 3vw, 2.5rem);
+      line-height: 1.05;
+      text-shadow: 3px 0 0 var(--ink), 0 3px 0 var(--ink);
+    }
+
+    .wall-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 2;
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--ink);
+      border-radius: 6px;
+      color: var(--paper);
+      cursor: pointer;
+      background: var(--red);
+      box-shadow: 0 4px 0 var(--ink);
+      font: 1000 1.35rem/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+
+    .ad-wall {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .sticker {
+      min-height: 126px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+      padding: 13px;
+      border: 4px solid var(--ink);
+      border-radius: 5px;
+      color: var(--ink);
+      background: var(--paper);
+      box-shadow: 5px 5px 0 rgba(16, 27, 45, .92);
+      font-weight: 1000;
+      transform: rotate(var(--turn, 0deg));
+    }
+
+    .sticker strong {
+      color: var(--red-dark);
+      font-size: clamp(1rem, 1.6vw, 1.22rem);
+      line-height: 1.3;
+    }
+
+    .sticker small {
+      color: var(--blue);
+      line-height: 1.38;
+      font-size: .8rem;
+    }
+
+    .sticker:nth-child(3n + 1) {
+      --turn: -2deg;
+      background: #d6efff;
+    }
+
+    .sticker:nth-child(3n + 2) {
+      --turn: 2deg;
+      background: #dbffd0;
+    }
+
+    .sticker:nth-child(3n) {
+      --turn: -1deg;
+      background: #fff5cc;
+    }
+
+    #snapshotCanvas {
+      display: none;
+    }
+
+    @keyframes scan {
+      from {
+        transform: translateY(0);
+      }
+      to {
+        transform: translateY(650%);
+      }
+    }
+
+    @keyframes flicker {
+      0%,
+      100% {
+        opacity: .92;
+      }
+      50% {
+        opacity: .73;
+      }
+    }
+
+    @keyframes cursor {
+      50% {
+        opacity: .2;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .topbar,
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dex-strip {
+        width: 100%;
+      }
+
+      .lower-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .share-panel {
+        grid-column: span 2;
+      }
+
+      .share-panel .share-preview {
+        width: min(100%, 350px);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page-shell {
+        width: min(100% - 18px, 660px);
+        padding-top: 13px;
+      }
+
+      .brand-panel,
+      .dex-strip,
+      .panel,
+      .dialogue-box {
+        border-width: 3px;
+      }
+
+      .brand-panel {
+        min-height: 0;
+        padding: 16px 15px 18px;
+      }
+
+      h1 {
+        text-shadow: 3px 0 0 var(--ink), 0 3px 0 var(--ink), 3px 3px 0 var(--yellow);
+      }
+
+      .panel,
+      .dex-strip {
+        padding: 14px;
+      }
+
+      .dashboard-grid,
+      .lower-grid {
+        grid-template-columns: 1fr;
+        gap: 13px;
+      }
+
+      .share-panel {
+        grid-column: auto;
+      }
+
+      .rating-card {
+        grid-template-columns: 78px 1fr;
+      }
+
+      .rating-rank {
+        width: 70px;
+      }
+
+      .attribute-row,
+      .compendium,
+      .vitals,
+      .ad-wall {
+        grid-template-columns: 1fr;
+      }
+
+      .target-box span {
+        font-size: .58rem;
+      }
+
+      .target-desk {
+        width: 44%;
+      }
+
+      .dialogue-box {
+        grid-template-columns: 50px 1fr;
+        gap: 11px;
+        min-height: 96px;
+        padding: 15px;
+      }
+
+      .dialogue-avatar {
+        width: 48px;
+        height: 48px;
+      }
+
+      .easter-trigger-hint {
+        top: 149px;
+        width: 60px;
+      }
+
+      .wall-board {
+        min-height: calc(100vh - 36px);
+        overflow-y: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="office-map" aria-hidden="true">
+    <span class="map-tile tile-desk"></span>
+    <span class="map-tile tile-plant"></span>
+    <span class="map-tile tile-cup"></span>
+    <span class="map-tile tile-badge"></span>
+    <span class="map-tile tile-chair"></span>
+  </div>
+
+  <main class="page-shell">
+    <span class="easter-trigger-hint" aria-hidden="true">工位小广告<br>低调潜伏</span>
+
+    <header class="topbar">
+      <section class="brand-panel" aria-labelledby="productTitle">
+        <span class="eyebrow">办公室生态探测图鉴</span>
+        <h1 id="productTitle">牛马检测器</h1>
+        <p class="slogan">检测班味，拯救人味。</p>
+      </section>
+
+      <aside class="dex-strip" aria-label="掌机状态">
+        <div class="dex-topline">
+          <span>HANDHELD OFFICE SCANNER</span>
+          <span class="status-leds" aria-hidden="true">
+            <i class="led"></i>
+            <i class="led"></i>
+            <i class="led"></i>
+          </span>
+        </div>
+        <p class="dex-message" id="scannerHeadline">请先开启摄像头，再捕捉办公室生态波动。</p>
+        <div class="mini-stats">
+          <div class="mini-stat">
+            <small>HP 身体电量</small>
+            <strong id="hpTop">--</strong>
+          </div>
+          <div class="mini-stat">
+            <small>MP 创造力</small>
+            <strong id="mpTop">--</strong>
+          </div>
+          <div class="mini-stat">
+            <small>SAN 稳定值</small>
+            <strong id="sanTop">--</strong>
+          </div>
+        </div>
+      </aside>
+    </header>
+
+    <section class="dashboard-grid" aria-label="检测主界面">
+      <section class="panel camera-panel" aria-labelledby="cameraTitle">
+        <div class="panel-head">
+          <h2 id="cameraTitle">实时班味扫描中...</h2>
+          <span class="badge" id="cameraBadge">本地镜头</span>
+        </div>
+
+        <div class="camera-stage" id="cameraStage">
+          <video id="cameraFeed" autoplay playsinline muted aria-label="摄像头预览"></video>
+          <div class="camera-tint"></div>
+          <div class="scan-line"></div>
+          <div class="finder"></div>
+          <div class="target-box target-face">
+            <span>人脸：检测到打工人生命体</span>
+          </div>
+          <div class="target-box target-desk">
+            <span>桌子：工位压迫感 78%</span>
+          </div>
+          <div class="target-box target-light">
+            <span>光照：灵魂亮度不足</span>
+          </div>
+          <div class="target-box target-plant">
+            <span>绿植：稀有回血道具</span>
+          </div>
+          <div class="target-box target-chair">
+            <span>椅子：疑似久坐刑具</span>
+          </div>
+        </div>
+
+        <div class="camera-meta">
+          <div class="scanner-log" id="scannerLog" aria-live="polite">SCANNER READY // 等待摄像头授权与工位样本。</div>
+          <div class="button-row">
+            <button class="game-button blue" id="cameraButton" type="button">
+              <span class="button-icon">C</span>开启摄像头
+            </button>
+            <button class="game-button red" id="detectButton" type="button">
+              <span class="button-icon">A</span>开始检测
+            </button>
+            <button class="game-button green" id="selfieButton" type="button">
+              <span class="button-icon">P</span>一键自拍截图
+            </button>
+            <button class="game-button" id="shareButton" type="button">
+              <span class="button-icon">S</span>生成分享卡片
+            </button>
+            <button class="game-button" id="eggButton" type="button">
+              <span class="button-icon">?</span>隐藏彩蛋
+            </button>
+            <button class="game-button blue" id="resetButton" type="button">
+              <span class="button-icon">R</span>重置数据
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel score-panel" aria-labelledby="scoreTitle">
+        <div class="panel-head">
+          <h2 id="scoreTitle">核心判定面板</h2>
+          <span class="badge" id="ratingBadge">等待建档</span>
+        </div>
+
+        <article class="rating-card" aria-live="polite">
+          <div class="rating-rank" id="ratingRank">?</div>
+          <div class="rating-copy">
+            <strong id="ratingTitle">尚未发现班味波形</strong>
+            <p id="ratingDescription">按下检测键，图鉴会为当前工位生成一份游戏式诊断。</p>
+          </div>
+        </article>
+
+        <div class="metrics" id="scoreMetrics">
+          <div class="metric" data-score="niumaIndex">
+            <div class="metric-label"><span>牛马指数</span><strong class="metric-value" id="niumaIndexValue">0</strong></div>
+            <div class="meter"><div class="meter-fill" id="niumaIndexBar" style="--bar: var(--red);"></div></div>
+          </div>
+          <div class="metric" data-score="banwei">
+            <div class="metric-label"><span>班味浓度</span><strong class="metric-value" id="banweiValue">0</strong></div>
+            <div class="meter"><div class="meter-fill" id="banweiBar" style="--bar: #f08d36;"></div></div>
+          </div>
+          <div class="metric" data-score="humanBalance">
+            <div class="metric-label"><span>人味余额</span><strong class="metric-value" id="humanBalanceValue">0</strong></div>
+            <div class="meter"><div class="meter-fill" id="humanBalanceBar" style="--bar: var(--green);"></div></div>
+          </div>
+          <div class="metric" data-score="workstationPressure">
+            <div class="metric-label"><span>工位压迫值</span><strong class="metric-value" id="workstationPressureValue">0</strong></div>
+            <div class="meter"><div class="meter-fill" id="workstationPressureBar" style="--bar: var(--blue-soft);"></div></div>
+          </div>
+          <div class="metric" data-score="mentalPower">
+            <div class="metric-label"><span>精神电量</span><strong class="metric-value" id="mentalPowerValue">0</strong></div>
+            <div class="meter"><div class="meter-fill" id="mentalPowerBar" style="--bar: var(--yellow);"></div></div>
+          </div>
+        </div>
+
+        <div class="attribute-row" aria-label="状态属性">
+          <div class="attribute">
+            <span>HP 身体电量</span>
+            <strong id="hpValue">--</strong>
+          </div>
+          <div class="attribute">
+            <span>MP 创造力</span>
+            <strong id="mpValue">--</strong>
+          </div>
+          <div class="attribute">
+            <span>SAN 精神稳定值</span>
+            <strong id="sanValue">--</strong>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="lower-grid" aria-label="诊断与分享区域">
+      <section class="panel environment-panel" aria-labelledby="environmentTitle">
+        <div class="panel-head">
+          <h2 id="environmentTitle">办公室环境图鉴</h2>
+          <span class="badge">空间系</span>
+        </div>
+
+        <div class="compendium">
+          <div class="dex-entry"><span>椅子舒适度</span><strong id="chairComfortValue">--</strong></div>
+          <div class="dex-entry"><span>桌面混乱度</span><strong id="deskChaosValue">--</strong></div>
+          <div class="dex-entry"><span>绿植覆盖率</span><strong id="plantCoverValue">--</strong></div>
+          <div class="dex-entry"><span>空间美学分</span><strong id="aestheticValue">--</strong></div>
+          <div class="dex-entry"><span>光照舒适度</span><strong id="lightComfortValue">--</strong></div>
+          <div class="dex-entry"><span>空气流动感</span><strong id="airflowValue">--</strong></div>
+        </div>
+
+        <div class="advice-block">
+          <h3>今日工位改造任务</h3>
+          <ul class="chip-list" id="spaceAdviceList">
+            <li>等待探测工位弱点</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="panel vitals-panel" aria-labelledby="vitalsTitle">
+        <div class="panel-head">
+          <h2 id="vitalsTitle">打工人生命体征观察</h2>
+          <span class="badge">关怀系</span>
+        </div>
+        <p class="disclaimer">本功能仅用于娱乐与自我关怀提示，不构成医学诊断。</p>
+
+        <div class="vitals">
+          <div class="vital">
+            <div class="vital-head"><span>黑眼圈浓度</span><strong id="darkCircleValue">--</strong></div>
+            <div class="tiny-meter"><b id="darkCircleBar" style="--bar: var(--blue-soft);"></b></div>
+          </div>
+          <div class="vital">
+            <div class="vital-head"><span>灵魂在线率</span><strong id="soulOnlineValue">--</strong></div>
+            <div class="tiny-meter"><b id="soulOnlineBar" style="--bar: var(--green);"></b></div>
+          </div>
+          <div class="vital">
+            <div class="vital-head"><span>微笑肌待机状态</span><strong id="smileStandbyValue">--</strong></div>
+            <div class="tiny-meter"><b id="smileStandbyBar" style="--bar: var(--yellow);"></b></div>
+          </div>
+          <div class="vital">
+            <div class="vital-head"><span>眉心压力云</span><strong id="browPressureValue">--</strong></div>
+            <div class="tiny-meter"><b id="browPressureBar" style="--bar: var(--red);"></b></div>
+          </div>
+          <div class="vital">
+            <div class="vital-head"><span>眼神含光量</span><strong id="eyeGleamValue">--</strong></div>
+            <div class="tiny-meter"><b id="eyeGleamBar" style="--bar: #79dfff;"></b></div>
+          </div>
+          <div class="vital">
+            <div class="vital-head"><span>继续工作风险</span><strong id="workRiskValue">--</strong></div>
+            <div class="tiny-meter"><b id="workRiskBar" style="--bar: #f08d36;"></b></div>
+          </div>
+        </div>
+
+        <article class="care-card">
+          <h3>人味恢复建议</h3>
+          <p id="careAdvice">饮食、运动、音乐与休息补给将在检测后刷新。</p>
+        </article>
+      </section>
+
+      <aside class="panel share-panel" aria-labelledby="shareTitle">
+        <div class="panel-head">
+          <h2 id="shareTitle">朋友圈裂变海报</h2>
+          <span class="badge">4:5</span>
+        </div>
+        <div class="share-preview">
+          <canvas id="shareCanvas" width="900" height="1125" aria-label="分享海报预览"></canvas>
+        </div>
+        <div class="share-copy">
+          <h3>截图即诊断</h3>
+          <p id="shareHint">海报会装入当前镜头、班味评级、今日回血建议与二维码占位。</p>
+          <div class="share-actions">
+            <button class="game-button red" id="downloadButton" type="button">下载 PNG</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="dialogue-box" aria-label="游戏对话框">
+      <div class="dialogue-avatar" aria-hidden="true"></div>
+      <p class="dialogue-text" id="dialogueText">野生的班味还在潜伏。请先收集摄像头样本。</p>
+    </section>
+
+    <footer class="privacy">
+      <span>所有摄像头画面仅在本地浏览器处理，不会上传服务器。</span>
+      <span>仅供娱乐与自我观察，不构成医学、心理或健康诊断。</span>
+    </footer>
+  </main>
+
+  <canvas id="snapshotCanvas" width="1280" height="720" aria-hidden="true"></canvas>
+
+  <section class="easter-wall" id="easterWall" aria-hidden="true" aria-label="牛皮癣小广告彩蛋">
+    <div class="wall-board" role="dialog" aria-modal="true" aria-labelledby="wallTitle">
+      <button class="wall-close" id="wallCloseButton" type="button" aria-label="关闭彩蛋">X</button>
+      <h2 id="wallTitle">工位牛皮癣小广告墙</h2>
+      <div class="ad-wall" id="adWall"></div>
+    </div>
+  </section>
+
+  <script>
+    const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, Math.round(value)));
+    const randomBetween = (min, max) => Math.round(Math.random() * (max - min) + min);
+    const pick = (items) => items[Math.floor(Math.random() * items.length)];
+    const uniquePicks = (items, count) => {
+      const pool = [...items];
+      const chosen = [];
+      while (pool.length && chosen.length < count) {
+        chosen.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+      }
+      return chosen;
+    };
+
+    const ratingDescriptions = {
+      S: { title: "自由灵魂", description: "自由灵魂，适合继续创造。", color: "#57c766" },
+      A: { title: "轻微班味", description: "轻微班味，可控范围。", color: "#9bd8ff" },
+      B: { title: "标准打工人", description: "标准打工人，请及时补水。", color: "#ffc83d" },
+      C: { title: "班味外溢", description: "班味外溢，建议离开工位。", color: "#f08d36" },
+      D: { title: "牛马临界态", description: "牛马临界态，立即下楼晒太阳。", color: "#e9454f" },
+      "Ω": { title: "办公空间异化", description: "办公空间已异化，请启动人味急救协议。", color: "#8b4ce8" }
+    };
+
+    const banweiTrolls = [
+      "野生的班味出现了！",
+      "你使用了咖啡，效果一般。",
+      "工位发动了精神削弱。",
+      "绿植不足，回血失败。",
+      "检测到你正在用意志力续航。",
+      "老板的 Slack 消息使你陷入混乱。",
+      "你逃跑了！但明天还要回来。",
+      "当前环境不适合修仙，适合辞职幻想。",
+      "会议邀请从草丛里跳了出来。",
+      "你的灵魂尝试断开 VPN。"
+    ];
+
+    const healthAdvice = [
+      "如果还要开会，建议先喝水，不要直接渡劫。",
+      "如果灵魂离线，建议颂钵疗愈或关机睡觉。",
+      "眼神开始加载失败时，先把屏幕亮度和肩膀一起放下来。",
+      "把五分钟休息当成补给站，不要当成新的待办。",
+      "今天的自我关怀任务：让呼吸先于通知栏刷新。"
+    ];
+
+    const dietAdvice = [
+      "今天适合吃高蛋白：鸡蛋 / 鱼肉 / 豆腐 / 牛肉。",
+      "如果精神发飘，建议碳水回血：米饭 / 面 / 香蕉。",
+      "先喝一杯水，再决定要不要召唤第二杯咖啡。",
+      "午后补给可以选酸奶、坚果和一份真正的水果。"
+    ];
+
+    const movementAdvice = [
+      "如果焦虑偏高，建议散步 20 分钟。",
+      "如果身体僵硬，建议肩颈拉伸 + 深蹲。",
+      "离开座位走到窗边，让腿部缓存重新加载。",
+      "把鼠标手松开十秒，给手腕一次复活机会。"
+    ];
+
+    const musicAdvice = [
+      "如果愤怒值上升，建议听 Techno 排毒。",
+      "低电量时切到轻爵士或环境音，给大脑留出空位。",
+      "写方案前放一首有节拍的歌，给创造力装上加速鞋。",
+      "通知太密时戴上耳机，播放一段无歌词回血 BGM。"
+    ];
+
+    const restAdvice = [
+      "屏幕外看远处 20 秒，让眼睛从工单副本脱身。",
+      "今晚优先睡觉，别把复盘写成午夜隐藏关。",
+      "把下一次站起身定在现在，而不是下次会议结束。",
+      "做一次深呼吸存档，再继续处理世界任务。"
+    ];
+
+    const spaceAdvice = [
+      "调高桌椅高度",
+      "增加绿植",
+      "换人体工学椅",
+      "减少冷白光",
+      "增加木质、布艺、自然材质",
+      "清理桌面线缆",
+      "给工位增加一盏暖光灯",
+      "把“监狱风办公区”改造成“数字游民补给站”"
+    ];
+
+    const easterAds = [
+      "祖传去班味，一贴见人味",
+      "三分钟去除工位怨气",
+      "高价回收废弃 KPI",
+      "专业打捞会议中走失的灵魂",
+      "老板看了沉默，HR 看了流泪",
+      "扫码加入数字游民康复中心",
+      "加急修复周一综合征",
+      "免费上门鉴定咖啡续命等级",
+      "承接 PPT 玄学开光与需求祛魅"
+    ];
+
+    const scanSteps = [
+      "正在识别椅子舒适度...",
+      "正在检测绿植覆盖率...",
+      "正在捕捉灵魂残影...",
+      "正在量化桌面线缆怨气...",
+      "正在监听冷白光压迫波...",
+      "正在校准微笑肌待机状态..."
+    ];
+
+    const featureLabels = [
+      "椅子：疑似久坐刑具",
+      "桌子：工位压迫感 78%",
+      "绿植：稀有回血道具",
+      "光照：灵魂亮度不足",
+      "人脸：检测到打工人生命体"
+    ];
+
+    const elements = {
+      cameraFeed: document.getElementById("cameraFeed"),
+      cameraStage: document.getElementById("cameraStage"),
+      cameraBadge: document.getElementById("cameraBadge"),
+      scannerLog: document.getElementById("scannerLog"),
+      scannerHeadline: document.getElementById("scannerHeadline"),
+      dialogueText: document.getElementById("dialogueText"),
+      ratingBadge: document.getElementById("ratingBadge"),
+      ratingRank: document.getElementById("ratingRank"),
+      ratingTitle: document.getElementById("ratingTitle"),
+      ratingDescription: document.getElementById("ratingDescription"),
+      spaceAdviceList: document.getElementById("spaceAdviceList"),
+      careAdvice: document.getElementById("careAdvice"),
+      shareCanvas: document.getElementById("shareCanvas"),
+      snapshotCanvas: document.getElementById("snapshotCanvas"),
+      shareHint: document.getElementById("shareHint"),
+      easterWall: document.getElementById("easterWall"),
+      adWall: document.getElementById("adWall"),
+      detectButton: document.getElementById("detectButton"),
+      targetBoxes: [...document.querySelectorAll(".target-box")]
+    };
+
+    let cameraStream = null;
+    let currentAnalysis = null;
+    let latestSelfie = null;
+    let scanningTimer = null;
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+
+    function wait(milliseconds) {
+      return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+    }
+
+    function animateNumber(node, nextValue) {
+      const startValue = Number(node.dataset.value || node.textContent || 0);
+      const started = performance.now();
+      const duration = 820;
+      node.dataset.value = String(nextValue);
+
+      function frame(now) {
+        const progress = Math.min(1, (now - started) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        node.textContent = Math.round(startValue + (nextValue - startValue) * eased);
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+        }
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    function fillMeter(prefix, value) {
+      const valueNode = document.getElementById(prefix + "Value");
+      const barNode = document.getElementById(prefix + "Bar");
+      if (valueNode) {
+        animateNumber(valueNode, value);
+      }
+      if (barNode) {
+        barNode.style.width = value + "%";
+      }
+    }
+
+    function getRating(score) {
+      if (score <= 18) return "S";
+      if (score <= 35) return "A";
+      if (score <= 53) return "B";
+      if (score <= 70) return "C";
+      if (score <= 86) return "D";
+      return "Ω";
+    }
+
+    async function initCamera() {
+      elements.scannerLog.textContent = "CAMERA REQUEST // 正在向浏览器申请镜头权限。";
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        elements.cameraBadge.textContent = "镜头不可用";
+        updateDialogue("当前浏览器没有开放摄像头入口，请换个支持 WebRTC 的场地。");
+        return;
+      }
+
+      try {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach((track) => track.stop());
+        }
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        elements.cameraFeed.srcObject = cameraStream;
+        await elements.cameraFeed.play();
+        elements.cameraStage.classList.add("live");
+        elements.cameraBadge.textContent = "镜头在线";
+        elements.scannerHeadline.textContent = "摄像头已连接，按下检测键读取工位生态。";
+        elements.scannerLog.textContent = "CAMERA LIVE // 镜头只在本地渲染，等待班味样本。";
+        updateDialogue("摄像头上线。现在把工位和人味一起放进图鉴。");
+      } catch (error) {
+        elements.cameraBadge.textContent = "授权失败";
+        elements.scannerHeadline.textContent = "无法读取摄像头，仍可使用模拟分析生成海报。";
+        elements.scannerLog.textContent = "CAMERA ERROR // 请允许镜头权限，或继续游玩 mock 检测。";
+        updateDialogue("摄像头权限没有通过。图鉴先用模拟视野推演班味。");
+        console.warn("Camera permission failed:", error);
+      }
+    }
+
+    function mockAnalysis() {
+      const environment = {
+        chairComfort: randomBetween(18, 96),
+        deskChaos: randomBetween(12, 98),
+        plantCover: randomBetween(2, 92),
+        aesthetic: randomBetween(18, 94),
+        lightComfort: randomBetween(10, 96),
+        airflow: randomBetween(16, 94)
+      };
+
+      const face = {
+        darkCircle: randomBetween(16, 96),
+        soulOnline: randomBetween(12, 97),
+        smileStandby: randomBetween(10, 94),
+        browPressure: randomBetween(13, 98),
+        eyeGleam: randomBetween(10, 96)
+      };
+
+      const chairDiscomfort = 100 - environment.chairComfort;
+      const lightPressure = 100 - environment.lightComfort;
+      const plantHeal = environment.plantCover;
+      const fatigue = clamp(
+        face.darkCircle * .29 +
+        face.browPressure * .24 +
+        (100 - face.soulOnline) * .25 +
+        (100 - face.eyeGleam) * .22
+      );
+
+      const workstationPressure = clamp(
+        chairDiscomfort * .31 +
+        environment.deskChaos * .22 +
+        lightPressure * .2 +
+        (100 - environment.airflow) * .12 +
+        (100 - environment.aesthetic) * .15
+      );
+
+      const banwei = clamp(
+        workstationPressure * .36 +
+        chairDiscomfort * .16 +
+        environment.deskChaos * .18 +
+        lightPressure * .14 +
+        fatigue * .16 -
+        plantHeal * .1
+      );
+
+      const mentalPower = clamp(
+        100 -
+        fatigue * .56 -
+        workstationPressure * .19 +
+        face.soulOnline * .22 +
+        face.eyeGleam * .18
+      );
+
+      const humanBalance = clamp(
+        face.soulOnline * .26 +
+        face.eyeGleam * .16 +
+        face.smileStandby * .13 +
+        environment.plantCover * .16 +
+        environment.airflow * .12 +
+        environment.lightComfort * .1 -
+        fatigue * .13 +
+        18
+      );
+
+      const niumaIndex = clamp(
+        workstationPressure * .25 +
+        banwei * .25 +
+        chairDiscomfort * .15 +
+        lightPressure * .1 +
+        fatigue * .2 -
+        plantHeal * .1
+      );
+
+      face.workRisk = clamp(
+        niumaIndex * .3 +
+        fatigue * .35 +
+        face.browPressure * .18 +
+        environment.deskChaos * .12 -
+        environment.airflow * .08 +
+        8
+      );
+
+      const ratings = getRating(niumaIndex);
+      const hp = clamp(100 - fatigue * .64 + environment.airflow * .18 + environment.lightComfort * .11);
+      const mp = clamp(mentalPower * .58 + environment.aesthetic * .19 + humanBalance * .18 - banwei * .08);
+      const san = clamp(humanBalance * .42 + face.soulOnline * .21 - face.browPressure * .16 - niumaIndex * .09 + 41);
+
+      return {
+        environment,
+        face,
+        scores: {
+          niumaIndex,
+          banwei,
+          humanBalance,
+          workstationPressure,
+          mentalPower,
+          hp,
+          mp,
+          san,
+          fatigue
+        },
+        rating: ratings,
+        dialogue: pick(banweiTrolls)
+      };
+    }
+
+    function buildSpaceAdvice(environment) {
+      const advice = [];
+      if (environment.chairComfort < 55) advice.push("换人体工学椅", "调高桌椅高度");
+      if (environment.plantCover < 38) advice.push("增加绿植");
+      if (environment.lightComfort < 52) advice.push("减少冷白光", "给工位增加一盏暖光灯");
+      if (environment.deskChaos > 58) advice.push("清理桌面线缆");
+      if (environment.aesthetic < 52) advice.push("增加木质、布艺、自然材质");
+      advice.push("把“监狱风办公区”改造成“数字游民补给站”");
+      return [...new Set(advice.concat(uniquePicks(spaceAdvice, 2)))].slice(0, 5);
+    }
+
+    function buildCareAdvice(analysis) {
+      const advice = [pick(dietAdvice)];
+      if (analysis.face.browPressure > 62 || analysis.face.workRisk > 70) {
+        advice.push("如果焦虑偏高，建议散步 20 分钟。");
+      } else {
+        advice.push(pick(movementAdvice));
+      }
+      if (analysis.scores.san < 45) {
+        advice.push("如果灵魂离线，建议颂钵疗愈或关机睡觉。");
+      } else {
+        advice.push(pick(musicAdvice));
+      }
+      advice.push(pick(healthAdvice), pick(restAdvice));
+      return [...new Set(advice)].slice(0, 4).join(" ");
+    }
+
+    function updateVital(prefix, value) {
+      const valueNode = document.getElementById(prefix + "Value");
+      const barNode = document.getElementById(prefix + "Bar");
+      if (valueNode) valueNode.textContent = value + "%";
+      if (barNode) barNode.style.width = value + "%";
+    }
+
+    function updateDashboard(analysis) {
+      currentAnalysis = analysis;
+      const { scores, environment, face } = analysis;
+      const rating = ratingDescriptions[analysis.rating];
+
+      ["niumaIndex", "banwei", "humanBalance", "workstationPressure", "mentalPower"].forEach((key) => {
+        fillMeter(key, scores[key]);
+      });
+
+      elements.ratingRank.textContent = analysis.rating;
+      elements.ratingRank.style.background = rating.color;
+      elements.ratingTitle.textContent = rating.title;
+      elements.ratingDescription.textContent = rating.description;
+      elements.ratingBadge.textContent = "评级 " + analysis.rating;
+
+      setText("hpValue", scores.hp + "/100");
+      setText("mpValue", scores.mp + "/100");
+      setText("sanValue", scores.san + "/100");
+      setText("hpTop", scores.hp);
+      setText("mpTop", scores.mp);
+      setText("sanTop", scores.san);
+
+      setText("chairComfortValue", environment.chairComfort + "%");
+      setText("deskChaosValue", environment.deskChaos + "%");
+      setText("plantCoverValue", environment.plantCover + "%");
+      setText("aestheticValue", environment.aesthetic + "%");
+      setText("lightComfortValue", environment.lightComfort + "%");
+      setText("airflowValue", environment.airflow + "%");
+
+      updateVital("darkCircle", face.darkCircle);
+      updateVital("soulOnline", face.soulOnline);
+      updateVital("smileStandby", face.smileStandby);
+      updateVital("browPressure", face.browPressure);
+      updateVital("eyeGleam", face.eyeGleam);
+      updateVital("workRisk", face.workRisk);
+
+      const advice = buildSpaceAdvice(environment);
+      elements.spaceAdviceList.innerHTML = advice.map((item) => "<li>" + item + "</li>").join("");
+      elements.careAdvice.textContent = buildCareAdvice(analysis);
+      elements.scannerHeadline.textContent = "诊断完成：" + rating.description;
+    }
+
+    function updateDialogue(message) {
+      elements.dialogueText.textContent = message || pick(banweiTrolls);
+    }
+
+    function jitterRecognitionBoxes() {
+      const positions = [
+        ["16%", "auto", "auto", "11%"],
+        ["auto", "7%", "10%", "auto"],
+        ["12%", "auto", "auto", "20%"],
+        ["auto", "auto", "14%", "8%"],
+        ["20%", "12%", "auto", "auto"]
+      ];
+      elements.targetBoxes.forEach((box, index) => {
+        const selection = positions[(index + randomBetween(0, positions.length - 1)) % positions.length];
+        box.style.top = selection[0];
+        box.style.right = selection[1];
+        box.style.bottom = selection[2];
+        box.style.left = selection[3];
+        box.style.transform = "translate(" + randomBetween(-8, 8) + "px, " + randomBetween(-6, 6) + "px)";
+        box.querySelector("span").textContent = featureLabels[(index + randomBetween(0, featureLabels.length - 1)) % featureLabels.length];
+      });
+    }
+
+    async function runDetection() {
+      elements.detectButton.disabled = true;
+      elements.cameraStage.classList.add("scanning");
+      updateDialogue("扫描仪开始读取工位，别让灵魂先下线。");
+
+      if (scanningTimer) {
+        clearInterval(scanningTimer);
+      }
+      jitterRecognitionBoxes();
+      scanningTimer = setInterval(jitterRecognitionBoxes, 430);
+
+      for (const step of uniquePicks(scanSteps, 4)) {
+        elements.scannerLog.textContent = "ANALYSIS // " + step;
+        await wait(360);
+      }
+
+      const analysis = mockAnalysis();
+      updateDashboard(analysis);
+      updateDialogue(analysis.dialogue);
+      elements.scannerLog.textContent = "ANALYSIS DONE // 牛马指数 " + analysis.scores.niumaIndex + "，人味余额 " + analysis.scores.humanBalance + "。";
+      elements.cameraStage.classList.remove("scanning");
+      elements.detectButton.disabled = false;
+      clearInterval(scanningTimer);
+      scanningTimer = null;
+      generateShareCard(false);
+    }
+
+    function roundedRect(ctx, x, y, width, height, radius, fill, stroke, lineWidth = 0) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      if (stroke && lineWidth) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function drawPixelLabel(ctx, text, x, y, fill) {
+      ctx.font = "900 24px PingFang SC, Microsoft YaHei, sans-serif";
+      const width = ctx.measureText(text).width + 34;
+      roundedRect(ctx, x, y, width, 46, 10, fill, "#101b2d", 5);
+      ctx.fillStyle = "#101b2d";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, x + 17, y + 23);
+    }
+
+    function drawPosterBackground(ctx, width, height) {
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, "#fff5da");
+      gradient.addColorStop(.5, "#d9f7bd");
+      gradient.addColorStop(1, "#9bd8ff");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.globalAlpha = .12;
+      ctx.strokeStyle = "#101b2d";
+      ctx.lineWidth = 2;
+      for (let x = 0; x < width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      roundedRect(ctx, 34, 34, width - 68, height - 68, 24, "rgba(255,250,240,.86)", "#101b2d", 10);
+      ctx.setLineDash([10, 9]);
+      roundedRect(ctx, 54, 54, width - 108, height - 108, 18, null, "rgba(16,27,45,.32)", 4);
+      ctx.setLineDash([]);
+    }
+
+    function drawFallbackCapture(ctx, x, y, width, height) {
+      const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
+      gradient.addColorStop(0, "#17345f");
+      gradient.addColorStop(1, "#57c766");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, width, height);
+      ctx.globalAlpha = .18;
+      ctx.strokeStyle = "#fffaf0";
+      ctx.lineWidth = 3;
+      for (let row = y; row <= y + height; row += 28) {
+        ctx.beginPath();
+        ctx.moveTo(x, row);
+        ctx.lineTo(x + width, row);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fffaf0";
+      ctx.textAlign = "center";
+      ctx.font = "1000 34px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("本地镜头待机", x + width / 2, y + height / 2 - 8);
+      ctx.font = "900 22px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("仍可游玩 mock 班味分析", x + width / 2, y + height / 2 + 34);
+      ctx.textAlign = "left";
+    }
+
+    function captureCameraFrame() {
+      const canvas = elements.snapshotCanvas;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (elements.cameraFeed.readyState >= 2 && elements.cameraFeed.videoWidth) {
+        const sourceWidth = elements.cameraFeed.videoWidth;
+        const sourceHeight = elements.cameraFeed.videoHeight;
+        canvas.width = sourceWidth;
+        canvas.height = sourceHeight;
+        ctx.save();
+        ctx.translate(sourceWidth, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(elements.cameraFeed, 0, 0, sourceWidth, sourceHeight);
+        ctx.restore();
+        latestSelfie = canvas;
+      } else {
+        canvas.width = 1280;
+        canvas.height = 720;
+        drawFallbackCapture(ctx, 0, 0, canvas.width, canvas.height);
+        latestSelfie = canvas;
+      }
+      return latestSelfie;
+    }
+
+    function coverImage(ctx, image, x, y, width, height) {
+      const sourceRatio = image.width / image.height;
+      const targetRatio = width / height;
+      let sourceX = 0;
+      let sourceY = 0;
+      let sourceWidth = image.width;
+      let sourceHeight = image.height;
+
+      if (sourceRatio > targetRatio) {
+        sourceWidth = image.height * targetRatio;
+        sourceX = (image.width - sourceWidth) / 2;
+      } else {
+        sourceHeight = image.width / targetRatio;
+        sourceY = (image.height - sourceHeight) / 2;
+      }
+
+      ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+    }
+
+    function drawFakeQRCode(ctx, x, y, size, label) {
+      roundedRect(ctx, x, y, size, size + 54, 18, "#fffaf0", "#101b2d", 6);
+      const cells = 25;
+      const gap = Math.floor((size - 36) / cells);
+      const offset = x + 18;
+      const top = y + 18;
+
+      function finder(startX, startY) {
+        ctx.fillStyle = "#101b2d";
+        ctx.fillRect(offset + startX * gap, top + startY * gap, 7 * gap, 7 * gap);
+        ctx.fillStyle = "#fffaf0";
+        ctx.fillRect(offset + (startX + 1) * gap, top + (startY + 1) * gap, 5 * gap, 5 * gap);
+        ctx.fillStyle = "#101b2d";
+        ctx.fillRect(offset + (startX + 2) * gap, top + (startY + 2) * gap, 3 * gap, 3 * gap);
+      }
+
+      finder(0, 0);
+      finder(18, 0);
+      finder(0, 18);
+
+      for (let row = 0; row < cells; row++) {
+        for (let column = 0; column < cells; column++) {
+          const insideFinder =
+            (row < 8 && column < 8) ||
+            (row < 8 && column > 16) ||
+            (row > 16 && column < 8);
+          const pattern = (row * 11 + column * 7 + row * column) % 9;
+          if (!insideFinder && (pattern < 4 || (row + column) % 13 === 0)) {
+            ctx.fillStyle = pattern === 0 ? "#e9454f" : "#101b2d";
+            ctx.fillRect(offset + column * gap, top + row * gap, gap, gap);
+          }
+        }
+      }
+
+      ctx.fillStyle = "#17345f";
+      ctx.font = "1000 18px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(label, x + size / 2, y + size + 30);
+      ctx.textAlign = "left";
+    }
+
+    function drawScorePill(ctx, label, value, x, y, width, color) {
+      roundedRect(ctx, x, y, width, 72, 18, color, "#101b2d", 6);
+      ctx.fillStyle = "#101b2d";
+      ctx.font = "1000 20px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText(label, x + 18, y + 28);
+      ctx.font = "1000 34px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText(String(value).padStart(2, "0"), x + 18, y + 59);
+    }
+
+    function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+      const chars = [...text];
+      const lines = [];
+      let line = "";
+      chars.forEach((char) => {
+        const testLine = line + char;
+        if (ctx.measureText(testLine).width > maxWidth && line) {
+          lines.push(line);
+          line = char;
+        } else {
+          line = testLine;
+        }
+      });
+      if (line) lines.push(line);
+      lines.slice(0, maxLines).forEach((entry, index) => ctx.fillText(entry, x, y + index * lineHeight));
+    }
+
+    function generateShareCard(shouldCapture = true) {
+      if (!currentAnalysis) {
+        updateDashboard(mockAnalysis());
+        updateDialogue("还没检测就想发图？图鉴先帮你补了一次模拟判定。");
+      }
+
+      const analysis = currentAnalysis;
+      const rating = ratingDescriptions[analysis.rating];
+      const source = shouldCapture || !latestSelfie ? captureCameraFrame() : latestSelfie;
+      const canvas = elements.shareCanvas;
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+      drawPosterBackground(ctx, width, height);
+
+      ctx.fillStyle = "#e9454f";
+      ctx.font = "1000 74px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("牛马检测器", 84, 154);
+      ctx.fillStyle = "#17345f";
+      ctx.font = "1000 30px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("检测班味，拯救人味。", 89, 201);
+      drawPixelLabel(ctx, "办公室生态探测图鉴", 89, 230, "#ffc83d");
+
+      roundedRect(ctx, 84, 304, 732, 414, 24, "#101b2d", "#101b2d", 8);
+      ctx.save();
+      roundedRect(ctx, 100, 320, 700, 382, 18, "#17345f");
+      ctx.clip();
+      coverImage(ctx, source, 100, 320, 700, 382);
+      ctx.restore();
+      ctx.strokeStyle = "rgba(255,250,240,.44)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(122, 344, 656, 334);
+      drawPixelLabel(ctx, "今日工位诊断", 118, 348, "#c4f1bc");
+
+      roundedRect(ctx, 597, 355, 154, 154, 22, rating.color, "#101b2d", 7);
+      ctx.fillStyle = "#101b2d";
+      ctx.font = "1000 27px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("班味评级", 674, 402);
+      ctx.font = "1000 76px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText(analysis.rating, 674, 481);
+      ctx.textAlign = "left";
+
+      drawScorePill(ctx, "牛马指数", analysis.scores.niumaIndex, 84, 754, 218, "#ffd06b");
+      drawScorePill(ctx, "班味浓度", analysis.scores.banwei, 319, 754, 218, "#ff9f89");
+      drawScorePill(ctx, "人味余额", analysis.scores.humanBalance, 554, 754, 262, "#9feaa6");
+
+      roundedRect(ctx, 84, 840, 472, 228, 20, "#fffaf0", "#101b2d", 6);
+      ctx.fillStyle = "#b52235";
+      ctx.font = "1000 24px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("今日工位诊断", 111, 900);
+      ctx.fillStyle = "#17345f";
+      ctx.font = "1000 29px PingFang SC, Microsoft YaHei, sans-serif";
+      wrapCanvasText(ctx, rating.description, 111, 945, 405, 40, 2);
+      ctx.fillStyle = "#137444";
+      ctx.font = "900 22px PingFang SC, Microsoft YaHei, sans-serif";
+      wrapCanvasText(ctx, "回血建议：" + buildCareAdvice(analysis), 111, 1012, 405, 30, 2);
+
+      drawFakeQRCode(ctx, 606, 840, 177, "扫码检测你的班味");
+
+      elements.shareHint.textContent = "分享卡已刷新：评级 " + analysis.rating + "，牛马指数 " + analysis.scores.niumaIndex + "。";
+    }
+
+    function downloadShareCard() {
+      if (!currentAnalysis) {
+        generateShareCard(true);
+      }
+      const anchor = document.createElement("a");
+      anchor.download = "niuma-detector-share-card.png";
+      anchor.href = elements.shareCanvas.toDataURL("image/png");
+      anchor.click();
+      updateDialogue("PNG 补给包已打包，适合发给同样闻到班味的人。");
+    }
+
+    function toggleEasterEgg(forceState) {
+      const open = typeof forceState === "boolean" ? forceState : !elements.easterWall.classList.contains("open");
+      elements.easterWall.classList.toggle("open", open);
+      elements.easterWall.setAttribute("aria-hidden", String(!open));
+      if (open) {
+        elements.adWall.innerHTML = uniquePicks(easterAds, 9).map((ad, index) => {
+          const footers = [
+            "非医学产品，纯属打工幻觉。",
+            "工位边贴边好笑。",
+            "本贴纸可抵御少量 KPI。",
+            "扫码后先给自己放风。",
+            "建议配合下楼晒太阳。"
+          ];
+          return "<article class=\"sticker\"><strong>" + ad + "</strong><small>" + footers[index % footers.length] + "</small></article>";
+        }).join("");
+        updateDialogue("你发现了广告墙：高价回收废弃 KPI。");
+      }
+    }
+
+    function resetData() {
+      currentAnalysis = null;
+      latestSelfie = null;
+      ["niumaIndex", "banwei", "humanBalance", "workstationPressure", "mentalPower"].forEach((key) => {
+        const value = document.getElementById(key + "Value");
+        const bar = document.getElementById(key + "Bar");
+        value.dataset.value = "0";
+        value.textContent = "0";
+        bar.style.width = "0";
+      });
+      ["hpValue", "mpValue", "sanValue"].forEach((id) => setText(id, "--"));
+      ["hpTop", "mpTop", "sanTop"].forEach((id) => setText(id, "--"));
+      ["chairComfortValue", "deskChaosValue", "plantCoverValue", "aestheticValue", "lightComfortValue", "airflowValue"].forEach((id) => setText(id, "--"));
+      ["darkCircle", "soulOnline", "smileStandby", "browPressure", "eyeGleam", "workRisk"].forEach((prefix) => {
+        setText(prefix + "Value", "--");
+        document.getElementById(prefix + "Bar").style.width = "0";
+      });
+      elements.ratingRank.textContent = "?";
+      elements.ratingRank.style.background = "";
+      elements.ratingTitle.textContent = "尚未发现班味波形";
+      elements.ratingDescription.textContent = "按下检测键，图鉴会为当前工位生成一份游戏式诊断。";
+      elements.ratingBadge.textContent = "等待建档";
+      elements.spaceAdviceList.innerHTML = "<li>等待探测工位弱点</li>";
+      elements.careAdvice.textContent = "饮食、运动、音乐与休息补给将在检测后刷新。";
+      elements.shareHint.textContent = "海报会装入当前镜头、班味评级、今日回血建议与二维码占位。";
+      elements.scannerHeadline.textContent = "数据已重置，随时开启下一次办公室探险。";
+      elements.scannerLog.textContent = "RESET // 图鉴缓存已清空。";
+      updateDialogue("你使用了重置键，班味回到未知状态。");
+      drawShareStandby();
+    }
+
+    function drawShareStandby() {
+      const canvas = elements.shareCanvas;
+      const ctx = canvas.getContext("2d");
+      drawPosterBackground(ctx, canvas.width, canvas.height);
+      roundedRect(ctx, 102, 212, 696, 698, 28, "#17345f", "#101b2d", 8);
+      ctx.fillStyle = "#fffaf0";
+      ctx.textAlign = "center";
+      ctx.font = "1000 72px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("牛马检测器", canvas.width / 2, 406);
+      ctx.fillStyle = "#ffc83d";
+      ctx.font = "1000 34px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("社交分享卡待生成", canvas.width / 2, 478);
+      ctx.fillStyle = "#d6efff";
+      ctx.font = "900 25px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.fillText("镜头 + 班味评级 + 回血建议", canvas.width / 2, 540);
+      drawFakeQRCode(ctx, 345, 613, 210, "扫码检测你的班味");
+      ctx.textAlign = "left";
+    }
+
+    document.getElementById("cameraButton").addEventListener("click", initCamera);
+    document.getElementById("detectButton").addEventListener("click", runDetection);
+    document.getElementById("selfieButton").addEventListener("click", () => {
+      captureCameraFrame();
+      generateShareCard(false);
+      updateDialogue("自拍捕获成功，工位样本已封进分享卡。");
+    });
+    document.getElementById("shareButton").addEventListener("click", () => generateShareCard(true));
+    document.getElementById("downloadButton").addEventListener("click", downloadShareCard);
+    document.getElementById("eggButton").addEventListener("click", () => toggleEasterEgg());
+    document.getElementById("wallCloseButton").addEventListener("click", () => toggleEasterEgg(false));
+    document.getElementById("resetButton").addEventListener("click", resetData);
+    elements.easterWall.addEventListener("click", (event) => {
+      if (event.target === elements.easterWall) toggleEasterEgg(false);
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") toggleEasterEgg(false);
+    });
+    window.addEventListener("beforeunload", () => {
+      if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
+    });
+
+    drawShareStandby();
+  </script>
+</body>
+</html>
