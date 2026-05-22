@@ -610,7 +610,7 @@
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
     }
 
@@ -1055,14 +1055,16 @@
     }
 
     .share-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 9px;
-      flex-wrap: wrap;
     }
 
     .share-actions .game-button {
-      flex-basis: 118px;
+      width: 100%;
       min-height: 44px;
       padding: 8px 10px;
+      font-size: .84rem;
     }
 
     .dialogue-box {
@@ -1448,10 +1450,25 @@
       }
     }
 
+    @media (min-width: 761px) {
+      .control-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .control-grid .reset-control {
+        grid-column: 1 / -1;
+      }
+    }
+
     @media (max-width: 760px) {
       .page-shell {
-        width: min(100% - 18px, 660px);
-        padding-top: 13px;
+        width: min(100% - 14px, 680px);
+        padding-top: 10px;
+      }
+
+      .topbar {
+        gap: 10px;
+        margin-bottom: 12px;
       }
 
       .brand-panel,
@@ -1463,16 +1480,29 @@
 
       .brand-panel {
         min-height: 0;
-        padding: 16px 15px 18px;
+        padding: 12px 12px 14px;
       }
 
       h1 {
+        font-size: clamp(2rem, 11vw, 3.2rem);
         text-shadow: 3px 0 0 var(--ink), 0 3px 0 var(--ink), 3px 3px 0 var(--yellow);
       }
 
-      .panel,
+      .slogan {
+        font-size: .95rem;
+      }
+
       .dex-strip {
-        padding: 14px;
+        min-height: auto;
+        padding: 12px;
+      }
+
+      .mini-stats {
+        display: none;
+      }
+
+      .panel {
+        padding: 12px;
       }
 
       .dashboard-grid,
@@ -1487,6 +1517,39 @@
 
       .control-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+      }
+
+      .game-button {
+        min-height: 46px;
+        padding: 9px 8px;
+        font-size: .92rem;
+        white-space: normal;
+      }
+
+      .control-grid .game-button {
+        white-space: normal;
+      }
+
+      .camera-stage {
+        aspect-ratio: 3 / 4;
+        min-height: min(62vh, 560px);
+      }
+
+      #cameraFeed {
+        object-fit: cover;
+      }
+
+      .camera-tint {
+        opacity: .72;
+      }
+
+      .target-box {
+        opacity: .9;
+      }
+
+      .share-actions {
+        grid-template-columns: 1fr;
       }
 
       .rating-card {
@@ -1543,7 +1606,11 @@
 
     @media (max-width: 420px) {
       .control-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .game-button {
+        white-space: normal;
       }
     }
   </style>
@@ -1629,11 +1696,14 @@
             <button class="game-button blue" id="cameraButton" type="button">
               <span class="button-icon">C</span>开启摄像头
             </button>
+            <button class="game-button blue" id="switchCameraButton" type="button">
+              <span class="button-icon">↺</span>切换镜头
+            </button>
             <button class="game-button red" id="detectButton" type="button">
               <span class="button-icon">A</span>开始检测
             </button>
             <button class="game-button green" id="selfieShareButton" type="button">
-              <span class="button-icon">P</span>自拍分享
+              <span class="button-icon">P</span>锁定分享
             </button>
             <button class="game-button" id="eggButton" type="button">
               <span class="button-icon">?</span>广告彩蛋
@@ -1775,6 +1845,8 @@
           <p id="shareHint">海报会装入当前镜头、班味评级、今日回血建议与二维码。</p>
           <div class="share-actions">
             <button class="game-button red" id="downloadButton" type="button">下载 PNG</button>
+            <button class="game-button blue" id="shareXButton" type="button">分享到 X</button>
+            <button class="game-button green" id="copyShareTextButton" type="button">复制文案</button>
           </div>
         </div>
       </aside>
@@ -1999,12 +2071,19 @@
       easterWall: document.getElementById("easterWall"),
       rehabGrid: document.getElementById("rehabGrid"),
       detectButton: document.getElementById("detectButton"),
+      switchCameraButton: document.getElementById("switchCameraButton"),
       targetBoxes: [...document.querySelectorAll(".target-box")]
     };
 
     let cameraStream = null;
+    let currentFacingMode = "user";
+    let currentDeviceId = null;
+    let videoInputs = [];
+    let cameraReady = false;
     let currentAnalysis = null;
     let latestSelfie = null;
+    let lockedShareFrame = null;
+    let shareCardReady = false;
     let scanningTimer = null;
 
     function setText(id, value) {
@@ -2053,41 +2132,175 @@
       return "Ω";
     }
 
-    async function initCamera() {
-      elements.scannerLog.textContent = "CAMERA REQUEST // 正在向浏览器申请镜头权限。";
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        elements.cameraBadge.textContent = "镜头不可用";
-        updateDialogue("当前浏览器没有开放摄像头入口，请换个支持 WebRTC 的场地。");
-        return;
+    function isMobileBrowser() {
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    }
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+        cameraStream = null;
+      }
+      cameraReady = false;
+      elements.cameraFeed.srcObject = null;
+      elements.cameraStage.classList.remove("live");
+    }
+
+    async function refreshVideoInputs() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        videoInputs = [];
+        return [];
       }
 
       try {
-        if (cameraStream) {
-          cameraStream.getTracks().forEach((track) => track.stop());
-        }
-        cameraStream = await navigator.mediaDevices.getUserMedia({
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        videoInputs = devices.filter((device) => device.kind === "videoinput");
+        return videoInputs;
+      } catch (error) {
+        console.warn("enumerateDevices failed", error);
+        videoInputs = [];
+        return [];
+      }
+    }
+
+    function getPreferredDeviceId(facingMode) {
+      if (!videoInputs.length) return null;
+
+      const keywords = facingMode === "environment"
+        ? ["back", "rear", "environment", "后置"]
+        : ["front", "user", "face", "前置"];
+
+      const matched = videoInputs.find((device) => {
+        const label = (device.label || "").toLowerCase();
+        return keywords.some((keyword) => label.includes(keyword));
+      });
+
+      return matched ? matched.deviceId : null;
+    }
+
+    function buildCameraConstraints(facingMode, deviceId) {
+      if (deviceId) {
+        return {
           video: {
-            facingMode: "user",
+            deviceId: { ideal: deviceId },
             width: { ideal: 1280 },
             height: { ideal: 720 },
             aspectRatio: { ideal: 16 / 9 }
           },
           audio: false
-        });
-        elements.cameraFeed.srcObject = cameraStream;
-        await elements.cameraFeed.play();
-        elements.cameraStage.classList.add("live");
-        elements.cameraBadge.textContent = "镜头在线";
-        elements.scannerHeadline.textContent = "摄像头已连接，按下检测键读取工位生态。";
-        elements.scannerLog.textContent = "CAMERA LIVE // 镜头只在本地渲染，等待班味样本。";
-        updateDialogue("摄像头上线。现在把工位和人味一起放进图鉴。");
+        };
+      }
+
+      return {
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 16 / 9 }
+        },
+        audio: false
+      };
+    }
+
+    function syncCameraFacingUI(facingMode) {
+      const usesFrontCamera = facingMode === "user";
+      elements.cameraFeed.style.transform = usesFrontCamera ? "scaleX(-1)" : "scaleX(1)";
+      elements.cameraBadge.textContent = usesFrontCamera ? "前置镜头" : "后置镜头";
+      elements.switchCameraButton.innerHTML = usesFrontCamera
+        ? "<span class=\"button-icon\">↺</span>切到后置"
+        : "<span class=\"button-icon\">↺</span>切到前置";
+      updateDialogue(usesFrontCamera
+        ? "前置镜头已上线，可以检测打工人生命体征。"
+        : "后置镜头已上线，可以扫描工位、椅子、桌面与空间班味。");
+    }
+
+    async function attachCameraStream(stream, facingMode, deviceId, scannerMessage) {
+      cameraStream = stream;
+      elements.cameraFeed.srcObject = stream;
+      await elements.cameraFeed.play();
+
+      const track = stream.getVideoTracks()[0];
+      const trackSettings = track && track.getSettings ? track.getSettings() : {};
+      currentFacingMode = facingMode;
+      currentDeviceId = deviceId || trackSettings.deviceId || null;
+      cameraReady = true;
+      latestSelfie = null;
+
+      elements.cameraStage.classList.add("live");
+      elements.scannerHeadline.textContent = "摄像头已连接，按下检测键读取工位生态。";
+      elements.scannerLog.textContent = scannerMessage;
+      syncCameraFacingUI(facingMode);
+      await refreshVideoInputs();
+      return true;
+    }
+
+    async function startCamera(facingMode = currentFacingMode, preferredDeviceId = null) {
+      elements.scannerLog.textContent = "CAMERA REQUEST // 正在向浏览器申请镜头权限。";
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        elements.cameraBadge.textContent = "镜头不可用";
+        elements.scannerLog.textContent = "CAMERA ERROR // 当前浏览器不支持摄像头调用。";
+        updateDialogue("请使用 Safari、Chrome 或支持摄像头权限的现代浏览器打开。");
+        return false;
+      }
+
+      stopCamera();
+
+      const deviceId = preferredDeviceId || getPreferredDeviceId(facingMode);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(buildCameraConstraints(facingMode, deviceId));
+        return await attachCameraStream(stream, facingMode, deviceId, "CAMERA LIVE // 镜头已在线，本地渲染中。");
       } catch (error) {
+        console.warn("startCamera failed", error);
+
+        if (deviceId) {
+          try {
+            stopCamera();
+            const fallbackStream = await navigator.mediaDevices.getUserMedia(buildCameraConstraints(facingMode, null));
+            return await attachCameraStream(
+              fallbackStream,
+              facingMode,
+              null,
+              "CAMERA FALLBACK // 已使用 facingMode 回退方案开启镜头。"
+            );
+          } catch (fallbackError) {
+            console.warn("facingMode fallback failed", fallbackError);
+          }
+        }
+
+        if (facingMode === "environment") {
+          elements.scannerLog.textContent = "CAMERA FALLBACK // 后置镜头不可用，尝试切回前置。";
+          return await startCamera("user", null);
+        }
+
+        cameraReady = false;
         elements.cameraBadge.textContent = "授权失败";
         elements.scannerHeadline.textContent = "无法读取摄像头，仍可使用模拟分析生成海报。";
-        elements.scannerLog.textContent = "CAMERA ERROR // 请允许镜头权限，或继续游玩 mock 检测。";
-        updateDialogue("摄像头权限没有通过。图鉴先用模拟视野推演班味。");
-        console.warn("Camera permission failed:", error);
+        elements.scannerLog.textContent = "CAMERA ERROR // 摄像头授权失败或当前浏览器环境不支持。";
+        updateDialogue("请确认已允许摄像头权限，并优先使用 HTTPS、Safari 或 Chrome 打开。");
+        return false;
       }
+    }
+
+    async function switchCamera() {
+      if (!cameraReady) {
+        const nextFacingMode = currentFacingMode === "user" ? "environment" : "user";
+        currentFacingMode = nextFacingMode;
+        elements.scannerLog.textContent = "CAMERA START // 正在尝试开启另一侧镜头。";
+        await startCamera(nextFacingMode);
+        return;
+      }
+
+      await refreshVideoInputs();
+
+      if (videoInputs.length <= 1 && !isMobileBrowser()) {
+        elements.scannerLog.textContent = "CAMERA INFO // 当前桌面设备只检测到一个摄像头。";
+        updateDialogue("这台设备似乎只有一个镜头，先用它完成班味采样。");
+        return;
+      }
+
+      const nextFacingMode = currentFacingMode === "user" ? "environment" : "user";
+      elements.scannerLog.textContent = "CAMERA SWITCH // 正在切换镜头...";
+      await startCamera(nextFacingMode, getPreferredDeviceId(nextFacingMode));
     }
 
     function mockAnalysis() {
@@ -2341,13 +2554,116 @@
       }
     }
 
+    const card = {
+      x: 32,
+      y: 32,
+      w: 836,
+      h: 1061,
+      pad: 52,
+      radius: 26
+    };
+
+    const grid = {
+      left: 84,
+      right: 816,
+      contentW: 732,
+      gap: 18
+    };
+
+    const shareLayout = {
+      title: { x: grid.left + 4, y: 118 },
+      subtitle: { x: grid.left + 6, y: 205 },
+      badge: { x: grid.left + 4, y: 230, w: 260, h: 50 },
+      photo: { x: grid.left - 4, y: 300, w: grid.contentW + 8, h: 420, r: 26 },
+      metricsY: 756,
+      metricH: 76,
+      metricGap: 14,
+      diag: { x: grid.left - 4, y: 850, w: 500, h: 210 },
+      qr: { x: 606, y: 850, w: 214, h: 210 }
+    };
+
+    function setFont(ctx, size, weight = 900) {
+      ctx.font = weight + " " + size + "px \"PingFang SC\", \"Microsoft YaHei\", \"Noto Sans SC\", system-ui, sans-serif";
+      ctx.textBaseline = "alphabetic";
+    }
+
+    function drawRoundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+    }
+
+    function fillRoundRect(ctx, x, y, width, height, radius, color) {
+      drawRoundRect(ctx, x, y, width, height, radius);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    function strokeRoundRect(ctx, x, y, width, height, radius, color, lineWidth) {
+      drawRoundRect(ctx, x, y, width, height, radius);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.stroke();
+    }
+
+    function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+      const chars = [...String(text || "")];
+      const lines = [];
+      let line = "";
+
+      chars.forEach((char) => {
+        const nextLine = line + char;
+        if (ctx.measureText(nextLine).width > maxWidth && line) {
+          lines.push(line);
+          line = char;
+        } else {
+          line = nextLine;
+        }
+      });
+      if (line) lines.push(line);
+
+      const visibleLines = lines.slice(0, maxLines);
+      if (lines.length > maxLines) {
+        let clipped = visibleLines[maxLines - 1];
+        while (clipped && ctx.measureText(clipped + "...").width > maxWidth) {
+          clipped = clipped.slice(0, -1);
+        }
+        visibleLines[maxLines - 1] = clipped + "...";
+      }
+
+      visibleLines.forEach((entry, index) => {
+        ctx.fillText(entry, x, y + index * lineHeight);
+      });
+    }
+
+    function drawImageCover(ctx, image, x, y, width, height) {
+      const imageWidth = image.videoWidth || image.naturalWidth || image.width;
+      const imageHeight = image.videoHeight || image.naturalHeight || image.height;
+      if (!imageWidth || !imageHeight) return;
+
+      const scale = Math.max(width / imageWidth, height / imageHeight);
+      const sourceWidth = width / scale;
+      const sourceHeight = height / scale;
+      const sourceX = (imageWidth - sourceWidth) / 2;
+      const sourceY = (imageHeight - sourceHeight) / 2;
+      ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+    }
+
     function drawPixelLabel(ctx, text, x, y, fill) {
-      ctx.font = "900 24px PingFang SC, Microsoft YaHei, sans-serif";
+      ctx.save();
+      setFont(ctx, 24, 900);
+      ctx.textAlign = "left";
       const width = ctx.measureText(text).width + 34;
-      roundedRect(ctx, x, y, width, 46, 10, fill, "#101b2d", 5);
+      fillRoundRect(ctx, x, y, width, 46, 10, fill);
+      strokeRoundRect(ctx, x, y, width, 46, 10, "#101b2d", 5);
       ctx.fillStyle = "#101b2d";
       ctx.textBaseline = "middle";
       ctx.fillText(text, x + 17, y + 23);
+      ctx.restore();
     }
 
     function drawPosterBackground(ctx, width, height) {
@@ -2358,6 +2674,7 @@
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
 
+      ctx.save();
       ctx.globalAlpha = .12;
       ctx.strokeStyle = "#101b2d";
       ctx.lineWidth = 2;
@@ -2373,12 +2690,14 @@
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-      ctx.globalAlpha = 1;
+      ctx.restore();
 
-      roundedRect(ctx, 34, 34, width - 68, height - 68, 24, "rgba(255,250,240,.86)", "#101b2d", 10);
+      fillRoundRect(ctx, card.x, card.y, card.w, card.h, card.radius, "rgba(255,250,240,.86)");
+      strokeRoundRect(ctx, card.x, card.y, card.w, card.h, card.radius, "#101b2d", 10);
+      ctx.save();
       ctx.setLineDash([10, 9]);
-      roundedRect(ctx, 54, 54, width - 108, height - 108, 18, null, "rgba(16,27,45,.32)", 4);
-      ctx.setLineDash([]);
+      strokeRoundRect(ctx, 54, 54, 792, 1017, 18, "rgba(16,27,45,.32)", 4);
+      ctx.restore();
     }
 
     function drawFallbackCapture(ctx, x, y, width, height) {
@@ -2387,6 +2706,7 @@
       gradient.addColorStop(1, "#57c766");
       ctx.fillStyle = gradient;
       ctx.fillRect(x, y, width, height);
+      ctx.save();
       ctx.globalAlpha = .18;
       ctx.strokeStyle = "#fffaf0";
       ctx.lineWidth = 3;
@@ -2396,202 +2716,266 @@
         ctx.lineTo(x + width, row);
         ctx.stroke();
       }
-      ctx.globalAlpha = 1;
+      ctx.restore();
       ctx.fillStyle = "#fffaf0";
       ctx.textAlign = "center";
-      ctx.font = "1000 34px PingFang SC, Microsoft YaHei, sans-serif";
-      ctx.fillText("本地镜头待机", x + width / 2, y + height / 2 - 8);
-      ctx.font = "900 22px PingFang SC, Microsoft YaHei, sans-serif";
-      ctx.fillText("仍可游玩 mock 班味分析", x + width / 2, y + height / 2 + 34);
+      ctx.textBaseline = "middle";
+      setFont(ctx, 34, 1000);
+      ctx.textBaseline = "middle";
+      ctx.fillText("本地镜头待机", x + width / 2, y + height / 2 - 20);
+      setFont(ctx, 22, 900);
+      ctx.textBaseline = "middle";
+      ctx.fillText("仍可游玩 mock 班味分析", x + width / 2, y + height / 2 + 28);
       ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
     }
 
     function captureCameraFrame() {
       const canvas = elements.snapshotCanvas;
       const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (elements.cameraFeed.readyState >= 2 && elements.cameraFeed.videoWidth) {
+      if (elements.cameraFeed.srcObject && elements.cameraFeed.readyState >= 2 && elements.cameraFeed.videoWidth) {
         const sourceWidth = elements.cameraFeed.videoWidth;
         const sourceHeight = elements.cameraFeed.videoHeight;
         canvas.width = sourceWidth;
         canvas.height = sourceHeight;
-        ctx.save();
-        ctx.translate(sourceWidth, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(elements.cameraFeed, 0, 0, sourceWidth, sourceHeight);
-        ctx.restore();
+        ctx.clearRect(0, 0, sourceWidth, sourceHeight);
+        if (currentFacingMode === "user") {
+          ctx.save();
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(elements.cameraFeed, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+        } else {
+          ctx.drawImage(elements.cameraFeed, 0, 0, canvas.width, canvas.height);
+        }
         latestSelfie = canvas;
       } else {
         canvas.width = 1280;
         canvas.height = 720;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawFallbackCapture(ctx, 0, 0, canvas.width, canvas.height);
         latestSelfie = canvas;
       }
       return latestSelfie;
     }
 
-    function coverImage(ctx, image, x, y, width, height) {
-      const sourceRatio = image.width / image.height;
-      const targetRatio = width / height;
-      let sourceX = 0;
-      let sourceY = 0;
-      let sourceWidth = image.width;
-      let sourceHeight = image.height;
-
-      if (sourceRatio > targetRatio) {
-        sourceWidth = image.height * targetRatio;
-        sourceX = (image.width - sourceWidth) / 2;
-      } else {
-        sourceHeight = image.width / targetRatio;
-        sourceY = (image.height - sourceHeight) / 2;
+    function lockCurrentFrame() {
+      if (!elements.cameraFeed.srcObject || elements.cameraFeed.readyState < 2) {
+        elements.scannerLog.textContent = "SNAPSHOT WAIT // 请先开启摄像头，再生成分享卡片。";
+        updateDialogue("镜头还没采到样本，先让摄像头上线。");
+        return false;
       }
 
-      ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+      const canvas = captureCameraFrame();
+      lockedShareFrame = canvas.toDataURL("image/png");
+      return true;
     }
 
-    function drawShareQRCode(ctx, x, y, size, label) {
-      roundedRect(ctx, x, y, size, size + 54, 18, "#fffaf0", "#101b2d", 6);
-      const inset = 11;
-      const qrSize = size - inset * 2;
+    function loadShareFrame(dataUrl) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
+    }
 
+    async function resolveShareFrame(useLockedFrame) {
+      if (useLockedFrame && lockedShareFrame) {
+        try {
+          return await loadShareFrame(lockedShareFrame);
+        } catch (error) {
+          console.warn("locked share frame failed", error);
+        }
+      }
+      return latestSelfie || captureCameraFrame();
+    }
+
+    function drawShareQRCode(ctx, x, y, width, heightOrLabel, label) {
+      const height = typeof heightOrLabel === "number" ? heightOrLabel : width + 54;
+      const copy = typeof heightOrLabel === "string" ? heightOrLabel : label;
+      const qrSize = Math.min(150, width - 38, height - 60);
+      const qrX = x + (width - qrSize) / 2;
+      const qrY = y + 18;
+
+      fillRoundRect(ctx, x, y, width, height, 20, "#fffaf0");
+      strokeRoundRect(ctx, x, y, width, height, 20, "#101b2d", 6);
       if (elements.shareQRCodeAsset.complete && elements.shareQRCodeAsset.naturalWidth) {
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(elements.shareQRCodeAsset, x + inset, y + inset, qrSize, qrSize);
+        ctx.drawImage(elements.shareQRCodeAsset, qrX, qrY, qrSize, qrSize);
         ctx.restore();
       } else {
-        roundedRect(ctx, x + inset, y + inset, qrSize, qrSize, 8, "#fffaf0", "#101b2d", 3);
+        fillRoundRect(ctx, qrX, qrY, qrSize, qrSize, 8, "#fffaf0");
+        strokeRoundRect(ctx, qrX, qrY, qrSize, qrSize, 8, "#101b2d", 3);
         ctx.fillStyle = "#17345f";
-        ctx.font = "1000 17px PingFang SC, Microsoft YaHei, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("二维码加载中", x + size / 2, y + size / 2 + 6);
+        ctx.textBaseline = "middle";
+        setFont(ctx, 16, 1000);
+        ctx.textBaseline = "middle";
+        ctx.fillText("二维码加载中", x + width / 2, qrY + qrSize / 2);
       }
 
       ctx.fillStyle = "#17345f";
-      ctx.font = "1000 18px PingFang SC, Microsoft YaHei, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(label, x + size / 2, y + size + 30);
+      ctx.textBaseline = "middle";
+      setFont(ctx, 18, 1000);
+      ctx.textBaseline = "middle";
+      ctx.fillText(copy, x + width / 2, y + height - 25);
       ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
     }
 
     function drawScorePill(ctx, label, value, x, y, width, color) {
-      roundedRect(ctx, x, y, width, 72, 18, color, "#101b2d", 6);
+      fillRoundRect(ctx, x, y, width, shareLayout.metricH, 18, color);
+      strokeRoundRect(ctx, x, y, width, shareLayout.metricH, 18, "#101b2d", 6);
       ctx.fillStyle = "#101b2d";
-      ctx.font = "1000 20px PingFang SC, Microsoft YaHei, sans-serif";
-      ctx.fillText(label, x + 18, y + 28);
-      ctx.font = "1000 34px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(String(value).padStart(2, "0"), x + 18, y + 59);
+      ctx.textAlign = "left";
+      setFont(ctx, 18, 1000);
+      ctx.fillText(label, x + 20, y + 29);
+      setFont(ctx, 38, 1000);
+      ctx.fillText(String(value), x + 20, y + 67);
     }
 
-    function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
-      const chars = [...text];
-      const lines = [];
-      let line = "";
-      chars.forEach((char) => {
-        const testLine = line + char;
-        if (ctx.measureText(testLine).width > maxWidth && line) {
-          lines.push(line);
-          line = char;
-        } else {
-          line = testLine;
-        }
-      });
-      if (line) lines.push(line);
-      lines.slice(0, maxLines).forEach((entry, index) => ctx.fillText(entry, x, y + index * lineHeight));
+    function drawShareCard(ctx, analysis, source) {
+      const rating = ratingDescriptions[analysis.rating];
+      const photo = shareLayout.photo;
+      const metricWidth = (photo.w - shareLayout.metricGap * 2) / 3;
+      drawPosterBackground(ctx, elements.shareCanvas.width, elements.shareCanvas.height);
+
+      ctx.fillStyle = "#e9454f";
+      ctx.textAlign = "left";
+      setFont(ctx, 64, 1000);
+      ctx.fillText("牛马检测器", shareLayout.title.x, shareLayout.title.y + 58);
+      ctx.fillStyle = "#17345f";
+      setFont(ctx, 26, 1000);
+      ctx.fillText("检测班味，拯救人味。", shareLayout.subtitle.x, shareLayout.subtitle.y);
+      drawPixelLabel(ctx, "办公室生态探测图鉴", shareLayout.badge.x, shareLayout.badge.y, "#ffc83d");
+
+      fillRoundRect(ctx, photo.x, photo.y, photo.w, photo.h, photo.r, "#101b2d");
+      ctx.save();
+      drawRoundRect(ctx, photo.x + 18, photo.y + 18, photo.w - 36, photo.h - 36, 19);
+      ctx.clip();
+      ctx.fillStyle = "#17345f";
+      ctx.fillRect(photo.x + 18, photo.y + 18, photo.w - 36, photo.h - 36);
+      drawImageCover(ctx, source, photo.x + 18, photo.y + 18, photo.w - 36, photo.h - 36);
+      ctx.restore();
+      strokeRoundRect(ctx, photo.x + 40, photo.y + 44, photo.w - 80, photo.h - 88, 2, "rgba(255,250,240,.43)", 3);
+      drawPixelLabel(ctx, "今日工位诊断", photo.x + 36, photo.y + 46, "#c4f1bc");
+
+      const rankX = photo.x + photo.w - 220;
+      const rankY = photo.y + 52;
+      fillRoundRect(ctx, rankX, rankY, 180, 160, 24, rating.color);
+      strokeRoundRect(ctx, rankX, rankY, 180, 160, 24, "#101b2d", 7);
+      ctx.fillStyle = "#101b2d";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      setFont(ctx, 25, 1000);
+      ctx.textBaseline = "middle";
+      ctx.fillText("班味评级", rankX + 90, rankY + 48);
+      setFont(ctx, 72, 1000);
+      ctx.textBaseline = "middle";
+      ctx.fillText(analysis.rating, rankX + 90, rankY + 111);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+
+      drawScorePill(ctx, "牛马指数", analysis.scores.niumaIndex, photo.x, shareLayout.metricsY, metricWidth, "#ffd06b");
+      drawScorePill(ctx, "班味浓度", analysis.scores.banwei, photo.x + metricWidth + shareLayout.metricGap, shareLayout.metricsY, metricWidth, "#ff9f89");
+      drawScorePill(ctx, "人味余额", analysis.scores.humanBalance, photo.x + (metricWidth + shareLayout.metricGap) * 2, shareLayout.metricsY, metricWidth, "#9feaa6");
+
+      const diag = shareLayout.diag;
+      fillRoundRect(ctx, diag.x, diag.y, diag.w, diag.h, 20, "#fffaf0");
+      strokeRoundRect(ctx, diag.x, diag.y, diag.w, diag.h, 20, "#101b2d", 6);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#b52235";
+      setFont(ctx, 23, 1000);
+      ctx.fillText("今日工位诊断", diag.x + 28, diag.y + 54);
+      ctx.fillStyle = "#17345f";
+      setFont(ctx, 29, 1000);
+      drawWrappedText(ctx, rating.description, diag.x + 28, diag.y + 104, diag.w - 56, 34, 2);
+      ctx.fillStyle = "#137444";
+      setFont(ctx, 20, 900);
+      drawWrappedText(ctx, "回血建议：" + buildCareAdvice(analysis), diag.x + 28, diag.y + 164, diag.w - 56, 28, 2);
+
+      drawShareQRCode(ctx, shareLayout.qr.x, shareLayout.qr.y, shareLayout.qr.w, shareLayout.qr.h, "扫码检测你的班味");
+      elements.shareHint.textContent = "分享卡已刷新：评级 " + analysis.rating + "，牛马指数 " + analysis.scores.niumaIndex + "。";
     }
 
-    function generateShareCard(shouldCapture = true) {
+    async function generateShareCard(options = {}) {
       if (!currentAnalysis) {
         updateDashboard(mockAnalysis());
         updateDialogue("还没检测就想发图？图鉴先帮你补了一次模拟判定。");
       }
 
-      const analysis = currentAnalysis;
-      const rating = ratingDescriptions[analysis.rating];
-      const source = shouldCapture || !latestSelfie ? captureCameraFrame() : latestSelfie;
+      const useLockedFrame = Boolean(options && typeof options === "object" && options.useLockedFrame);
+      const source = await resolveShareFrame(useLockedFrame);
       const canvas = elements.shareCanvas;
       const ctx = canvas.getContext("2d");
-      const width = canvas.width;
-      const height = canvas.height;
-      ctx.clearRect(0, 0, width, height);
-      drawPosterBackground(ctx, width, height);
-
-      ctx.fillStyle = "#e9454f";
-      ctx.font = "1000 74px PingFang SC, Microsoft YaHei, sans-serif";
-      ctx.fillText("牛马检测器", 84, 154);
-      ctx.fillStyle = "#17345f";
-      ctx.font = "1000 30px PingFang SC, Microsoft YaHei, sans-serif";
-      ctx.fillText("检测班味，拯救人味。", 89, 201);
-      drawPixelLabel(ctx, "办公室生态探测图鉴", 89, 230, "#ffc83d");
-
-      roundedRect(ctx, 84, 304, 732, 414, 24, "#101b2d", "#101b2d", 8);
-      ctx.save();
-      roundedRect(ctx, 100, 320, 700, 382, 18, "#17345f");
-      ctx.clip();
-      coverImage(ctx, source, 100, 320, 700, 382);
-      ctx.restore();
-      ctx.strokeStyle = "rgba(255,250,240,.44)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(122, 344, 656, 334);
-      drawPixelLabel(ctx, "今日工位诊断", 118, 348, "#c4f1bc");
-
-      roundedRect(ctx, 597, 355, 154, 154, 22, rating.color, "#101b2d", 7);
-      ctx.fillStyle = "#101b2d";
-      ctx.font = "1000 27px PingFang SC, Microsoft YaHei, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("班味评级", 674, 402);
-      ctx.font = "1000 76px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(analysis.rating, 674, 481);
-      ctx.textAlign = "left";
-
-      drawScorePill(ctx, "牛马指数", analysis.scores.niumaIndex, 84, 754, 218, "#ffd06b");
-      drawScorePill(ctx, "班味浓度", analysis.scores.banwei, 319, 754, 218, "#ff9f89");
-      drawScorePill(ctx, "人味余额", analysis.scores.humanBalance, 554, 754, 262, "#9feaa6");
-
-      roundedRect(ctx, 84, 840, 472, 228, 20, "#fffaf0", "#101b2d", 6);
-      ctx.fillStyle = "#b52235";
-      ctx.font = "1000 24px PingFang SC, Microsoft YaHei, sans-serif";
-      ctx.fillText("今日工位诊断", 111, 900);
-      ctx.fillStyle = "#17345f";
-      ctx.font = "1000 29px PingFang SC, Microsoft YaHei, sans-serif";
-      wrapCanvasText(ctx, rating.description, 111, 945, 405, 40, 2);
-      ctx.fillStyle = "#137444";
-      ctx.font = "900 22px PingFang SC, Microsoft YaHei, sans-serif";
-      wrapCanvasText(ctx, "回血建议：" + buildCareAdvice(analysis), 111, 1012, 405, 30, 2);
-
-      drawShareQRCode(ctx, 606, 840, 177, "扫码检测你的班味");
-
-      elements.shareHint.textContent = "分享卡已刷新：评级 " + analysis.rating + "，牛马指数 " + analysis.scores.niumaIndex + "。";
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawShareCard(ctx, currentAnalysis, source);
+      shareCardReady = true;
     }
 
-    function downloadShareCard() {
-      if (!currentAnalysis) {
-        generateShareCard(true);
+    async function handleLockShare() {
+      if (!lockCurrentFrame()) return;
+      await generateShareCard({ useLockedFrame: true });
+      shareCardReady = true;
+      elements.scannerLog.textContent = "SHARE READY // 已锁定当前画面，可下载 PNG 或跳转分享。";
+      updateDialogue("当前班味样本已封存，可以作为今日工位诊断报告发射到社交媒体。");
+    }
+
+    function getShareText() {
+      const rank = elements.ratingRank.textContent || "?";
+      const niuma = document.getElementById("niumaIndexValue").textContent || "--";
+      const banwei = document.getElementById("banweiValue").textContent || "--";
+      const human = document.getElementById("humanBalanceValue").textContent || "--";
+
+      return "我刚完成一次「牛马检测器」工位诊断：\n\n"
+        + "班味评级：" + rank + "\n"
+        + "牛马指数：" + niuma + "\n"
+        + "班味浓度：" + banwei + "\n"
+        + "人味余额：" + human + "\n\n"
+        + "检测班味，拯救人味。\n"
+        + "https://lucas1968.github.io/niuma-detector/";
+    }
+
+    async function handleShareToX() {
+      if (!shareCardReady) {
+        await generateShareCard({ useLockedFrame: true });
+      }
+      const text = encodeURIComponent(getShareText());
+      window.open("https://twitter.com/intent/tweet?text=" + text, "_blank", "noopener,noreferrer");
+    }
+
+    async function handleCopyShareText() {
+      const text = getShareText();
+      try {
+        await navigator.clipboard.writeText(text);
+        elements.scannerLog.textContent = "COPY READY // 分享文案已复制，可配合 PNG 发到小红书 / 朋友圈。";
+        updateDialogue("文案已复制。下载 PNG 后，就可以去小红书、朋友圈或群聊投放今日班味报告。");
+      } catch (error) {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        elements.scannerLog.textContent = "COPY READY // 分享文案已复制。";
+      }
+    }
+
+    async function handleDownloadShareCard() {
+      if (!shareCardReady) {
+        await generateShareCard({ useLockedFrame: true });
       }
       const anchor = document.createElement("a");
       anchor.download = "niuma-detector-share-card.png";
       anchor.href = elements.shareCanvas.toDataURL("image/png");
       anchor.click();
-      updateDialogue("PNG 补给包已打包，适合发给同样闻到班味的人。");
-    }
-
-    function handleSelfieShare() {
-      if (!currentAnalysis) {
-        elements.scannerLog.textContent = "SHARE WAIT // 请先完成检测，再生成分享卡片。";
-        updateDialogue("请先完成检测，再生成分享卡片。");
-        return;
-      }
-
-      if (!cameraStream) {
-        elements.scannerLog.textContent = "SHARE FALLBACK // 镜头未开启，使用本地待机画面生成海报。";
-      }
-
-      if (!latestSelfie) {
-        captureCameraFrame();
-      }
-
-      generateShareCard(false);
-      updateDialogue("自拍分享已生成，工位样本和回血建议都装进海报了。");
+      elements.scannerLog.textContent = "PNG SAVED // 分享卡片已下载。";
+      updateDialogue("PNG 补给包已打包，配上复制文案就能投放今日班味报告。");
     }
 
     function toggleEasterEgg(forceState) {
@@ -2609,6 +2993,8 @@
     function resetData() {
       currentAnalysis = null;
       latestSelfie = null;
+      lockedShareFrame = null;
+      shareCardReady = false;
       ["niumaIndex", "banwei", "humanBalance", "workstationPressure", "mentalPower"].forEach((key) => {
         const value = document.getElementById(key + "Value");
         const bar = document.getElementById(key + "Bar");
@@ -2656,10 +3042,13 @@
       ctx.textAlign = "left";
     }
 
-    document.getElementById("cameraButton").addEventListener("click", initCamera);
+    document.getElementById("cameraButton").addEventListener("click", () => startCamera(currentFacingMode));
+    elements.switchCameraButton.addEventListener("click", switchCamera);
     document.getElementById("detectButton").addEventListener("click", runDetection);
-    document.getElementById("selfieShareButton").addEventListener("click", handleSelfieShare);
-    document.getElementById("downloadButton").addEventListener("click", downloadShareCard);
+    document.getElementById("selfieShareButton").addEventListener("click", handleLockShare);
+    document.getElementById("downloadButton").addEventListener("click", handleDownloadShareCard);
+    document.getElementById("shareXButton").addEventListener("click", handleShareToX);
+    document.getElementById("copyShareTextButton").addEventListener("click", handleCopyShareText);
     document.getElementById("eggButton").addEventListener("click", () => toggleEasterEgg());
     document.getElementById("wallCloseButton").addEventListener("click", () => toggleEasterEgg(false));
     document.getElementById("resetButton").addEventListener("click", resetData);
@@ -2669,12 +3058,10 @@
     window.addEventListener("keydown", (event) => {
       if (event.key === "Escape") toggleEasterEgg(false);
     });
-    window.addEventListener("beforeunload", () => {
-      if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
-    });
+    window.addEventListener("beforeunload", stopCamera);
     elements.shareQRCodeAsset.addEventListener("load", () => {
       if (currentAnalysis) {
-        generateShareCard(false);
+        generateShareCard({ useLockedFrame: Boolean(lockedShareFrame) });
       } else {
         drawShareStandby();
       }
