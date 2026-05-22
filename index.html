@@ -285,7 +285,6 @@
     .dex-topline,
     .status-leds,
     .mini-stats,
-    .button-row,
     .panel-head,
     .metric-label,
     .vital-head,
@@ -460,7 +459,7 @@
       z-index: 1;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       transform: scaleX(-1);
       filter: saturate(1.05) contrast(1.03);
     }
@@ -607,11 +606,22 @@
       box-shadow: inset 0 0 0 3px rgba(255, 250, 240, .1);
     }
 
-    .button-row {
+    .control-grid {
       position: relative;
       z-index: 1;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
+    }
+
+    .control-grid .game-button {
+      width: 100%;
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .control-grid .reset-control {
+      grid-column: 1 / -1;
     }
 
     .game-button {
@@ -999,6 +1009,14 @@
         #ffe5ac;
     }
 
+    .share-panel-meta {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 10px;
+    }
+
     .share-preview {
       position: relative;
       z-index: 1;
@@ -1097,6 +1115,142 @@
       animation: cursor 1s steps(2, end) infinite;
     }
 
+    .partners-panel {
+      margin-top: 18px;
+      color: var(--paper);
+      background:
+        linear-gradient(135deg, rgba(155, 216, 255, .16), transparent 42%),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, .08) 0 4px, transparent 4px 18px),
+        var(--blue);
+    }
+
+    .partners-head {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 15px;
+    }
+
+    .partners-panel h2 {
+      color: #fff0a6;
+    }
+
+    .partners-kicker {
+      display: inline-block;
+      margin-bottom: 5px;
+      color: #baf4ff;
+      font: 1000 .82rem/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+      text-transform: uppercase;
+    }
+
+    .partner-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .partner-card {
+      min-width: 0;
+      display: grid;
+      gap: 9px;
+      align-content: start;
+      padding: 15px;
+      border: 4px solid var(--ink);
+      border-radius: 6px;
+      color: var(--blue);
+      background: var(--paper);
+      box-shadow: 5px 5px 0 rgba(16, 27, 45, .95);
+      transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    }
+
+    .partner-card:hover {
+      filter: saturate(1.06);
+      transform: translateY(-3px);
+      box-shadow: 5px 8px 0 rgba(16, 27, 45, .95), 0 14px 22px rgba(0, 0, 0, .16);
+    }
+
+    .partner-card:nth-child(2) {
+      background: #fff1bd;
+    }
+
+    .partner-card:nth-child(3) {
+      background: #d6efff;
+    }
+
+    .partner-card:nth-child(4) {
+      background: #dbffd0;
+    }
+
+    .partner-card h3 {
+      margin: 0;
+      color: var(--red-dark);
+      font-size: clamp(1.02rem, 1.5vw, 1.24rem);
+      line-height: 1.25;
+      font-weight: 1000;
+    }
+
+    .partner-card p {
+      margin: 0;
+      color: var(--blue);
+      font-size: .91rem;
+      line-height: 1.58;
+      font-weight: 850;
+      overflow-wrap: anywhere;
+    }
+
+    .partner-chip {
+      justify-self: start;
+      max-width: 100%;
+      padding: 5px 9px;
+      border: 3px solid var(--ink);
+      border-radius: 999px;
+      color: var(--ink);
+      background: var(--yellow);
+      box-shadow: 3px 3px 0 rgba(16, 27, 45, .86);
+      font-size: .75rem;
+      line-height: 1.2;
+      font-weight: 1000;
+      overflow-wrap: anywhere;
+    }
+
+    .partner-link {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 38px;
+      max-width: 100%;
+      padding: 7px 10px;
+      border: 3px solid var(--ink);
+      border-radius: 5px;
+      color: var(--paper);
+      background: var(--blue-soft);
+      box-shadow: 0 4px 0 var(--ink);
+      text-decoration: none;
+      font-size: .84rem;
+      line-height: 1.25;
+      font-weight: 1000;
+      transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    }
+
+    .partner-link span {
+      color: #d4ffd9;
+      overflow-wrap: anywhere;
+    }
+
+    .partner-link:hover,
+    .partner-link:focus-visible {
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 0 var(--ink), 0 0 0 4px rgba(121, 223, 255, .24);
+    }
+
     .privacy {
       display: grid;
       gap: 4px;
@@ -1162,11 +1316,20 @@
 
     .wall-board h2 {
       max-width: calc(100% - 76px);
-      margin: 0 0 18px;
+      margin: 0 0 8px;
       color: var(--red);
       font-size: clamp(1.45rem, 3vw, 2.5rem);
       line-height: 1.05;
       text-shadow: 3px 0 0 var(--ink), 0 3px 0 var(--ink);
+    }
+
+    .wall-subtitle {
+      max-width: calc(100% - 76px);
+      margin: 0 0 18px;
+      color: var(--blue);
+      font-size: .9rem;
+      line-height: 1.42;
+      font-weight: 1000;
     }
 
     .wall-close {
@@ -1185,7 +1348,7 @@
       font: 1000 1.35rem/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
     }
 
-    .ad-wall {
+    .rehab-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 14px;
@@ -1322,6 +1485,10 @@
         grid-column: auto;
       }
 
+      .control-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .rating-card {
         grid-template-columns: 78px 1fr;
       }
@@ -1333,8 +1500,14 @@
       .attribute-row,
       .compendium,
       .vitals,
-      .ad-wall {
+      .rehab-grid,
+      .partner-grid {
         grid-template-columns: 1fr;
+      }
+
+      .partners-head {
+        align-items: start;
+        flex-direction: column;
       }
 
       .target-box span {
@@ -1367,6 +1540,12 @@
         overflow-y: auto;
       }
     }
+
+    @media (max-width: 420px) {
+      .control-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1379,7 +1558,7 @@
   </div>
 
   <main class="page-shell">
-    <span class="easter-trigger-hint" aria-hidden="true">工位小广告<br>低调潜伏</span>
+    <span class="easter-trigger-hint" aria-hidden="true">回血 NPC<br>低调开放</span>
 
     <header class="topbar">
       <section class="brand-panel" aria-labelledby="productTitle">
@@ -1446,23 +1625,20 @@
 
         <div class="camera-meta">
           <div class="scanner-log" id="scannerLog" aria-live="polite">SCANNER READY // 等待摄像头授权与工位样本。</div>
-          <div class="button-row">
+          <div class="control-grid">
             <button class="game-button blue" id="cameraButton" type="button">
               <span class="button-icon">C</span>开启摄像头
             </button>
             <button class="game-button red" id="detectButton" type="button">
               <span class="button-icon">A</span>开始检测
             </button>
-            <button class="game-button green" id="selfieButton" type="button">
-              <span class="button-icon">P</span>一键自拍截图
-            </button>
-            <button class="game-button" id="shareButton" type="button">
-              <span class="button-icon">S</span>生成分享卡片
+            <button class="game-button green" id="selfieShareButton" type="button">
+              <span class="button-icon">P</span>自拍分享
             </button>
             <button class="game-button" id="eggButton" type="button">
-              <span class="button-icon">?</span>隐藏彩蛋
+              <span class="button-icon">?</span>广告彩蛋
             </button>
-            <button class="game-button blue" id="resetButton" type="button">
+            <button class="game-button blue reset-control" id="resetButton" type="button">
               <span class="button-icon">R</span>重置数据
             </button>
           </div>
@@ -1587,9 +1763,8 @@
         </article>
       </section>
 
-      <aside class="panel share-panel" aria-labelledby="shareTitle">
-        <div class="panel-head">
-          <h2 id="shareTitle">朋友圈裂变海报</h2>
+      <aside class="panel share-panel" aria-label="分享海报区域">
+        <div class="share-panel-meta">
           <span class="badge">4:5</span>
         </div>
         <div class="share-preview">
@@ -1597,7 +1772,7 @@
         </div>
         <div class="share-copy">
           <h3>截图即诊断</h3>
-          <p id="shareHint">海报会装入当前镜头、班味评级、今日回血建议与二维码占位。</p>
+          <p id="shareHint">海报会装入当前镜头、班味评级、今日回血建议与二维码。</p>
           <div class="share-actions">
             <button class="game-button red" id="downloadButton" type="button">下载 PNG</button>
           </div>
@@ -1610,6 +1785,44 @@
       <p class="dialogue-text" id="dialogueText">野生的班味还在潜伏。请先收集摄像头样本。</p>
     </section>
 
+    <section class="panel partners-panel" aria-labelledby="partnersTitle">
+      <div class="partners-head">
+        <div>
+          <span class="partners-kicker">Ecosystem Partners</span>
+          <h2 id="partnersTitle">牛马康复中心</h2>
+        </div>
+        <span class="badge">共建补给</span>
+      </div>
+
+      <div class="partner-grid">
+        <article class="partner-card">
+          <span class="partner-chip">Health Data Partner</span>
+          <h3>Regenerative Bio</h3>
+          <p>围绕健康衰老、器官年龄管理与 AI 健康管理的科技健康公司。本次活动的健康数据与开发者状态合作伙伴。</p>
+        </article>
+
+        <article class="partner-card">
+          <span class="partner-chip">Longevity Culture</span>
+          <h3>muShanghai Longevity</h3>
+          <p>muShanghai 旗下的长寿科技与文化体验项目。依托为期一个月、汇聚 50+ 国家、2,000 位 Builder 的 muShanghai 生态，由 The Mu × 阿里巴巴虹桥中心联合主办，融合前沿科技与传统文化，向世界展示贯穿古今的中国力量。</p>
+        </article>
+
+        <article class="partner-card">
+          <span class="partner-chip">AI Native Community</span>
+          <h3>失序实验室 Norther Lab</h3>
+          <p>面向 AI native 创始人与开发者的社区。我们和真正在场的人一起，在失序的 AI 浪潮中重构新的秩序。</p>
+          <a class="partner-link" href="https://notehrlab.com" target="_blank" rel="noreferrer">访问官网 <span>notehrlab.com</span></a>
+        </article>
+
+        <article class="partner-card">
+          <span class="partner-chip">Digital Commons</span>
+          <h3>GCC</h3>
+          <p>GCC, Global Chinese Community of Universal Digital Commons, 支持那些以未来方式重塑公共物品的人与项目。数字空间原本应当是全人类共享的公地，却正在被科技封建主义掌控，个人自由与隐私日益受到威胁。GCC 关注数字公地、公共物品、隐私与自由。</p>
+          <a class="partner-link" href="https://www.gccofficial.org/" target="_blank" rel="noreferrer">访问官网 <span>gccofficial.org</span></a>
+        </article>
+      </div>
+    </section>
+
     <footer class="privacy">
       <span>所有摄像头画面仅在本地浏览器处理，不会上传服务器。</span>
       <span>仅供娱乐与自我观察，不构成医学、心理或健康诊断。</span>
@@ -1617,12 +1830,14 @@
   </main>
 
   <canvas id="snapshotCanvas" width="1280" height="720" aria-hidden="true"></canvas>
+  <img id="shareQRCodeAsset" hidden alt="" src="data:image/png;base64,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">
 
-  <section class="easter-wall" id="easterWall" aria-hidden="true" aria-label="牛皮癣小广告彩蛋">
+  <section class="easter-wall" id="easterWall" aria-hidden="true" aria-label="牛马身心康复中心彩蛋">
     <div class="wall-board" role="dialog" aria-modal="true" aria-labelledby="wallTitle">
       <button class="wall-close" id="wallCloseButton" type="button" aria-label="关闭彩蛋">X</button>
-      <h2 id="wallTitle">工位牛皮癣小广告墙</h2>
-      <div class="ad-wall" id="adWall"></div>
+      <h2 id="wallTitle">牛马身心康复中心</h2>
+      <p class="wall-subtitle">工位灵魂急救 / 久坐回血 / 班味代谢 / 轻量自救</p>
+      <div class="rehab-grid" id="rehabGrid"></div>
     </div>
   </section>
 
@@ -1708,16 +1923,43 @@
       "把“监狱风办公区”改造成“数字游民补给站”"
     ];
 
-    const easterAds = [
-      "祖传去班味，一贴见人味",
-      "三分钟去除工位怨气",
-      "高价回收废弃 KPI",
-      "专业打捞会议中走失的灵魂",
-      "老板看了沉默，HR 看了流泪",
-      "扫码加入数字游民康复中心",
-      "加急修复周一综合征",
-      "免费上门鉴定咖啡续命等级",
-      "承接 PPT 玄学开光与需求祛魅"
+    const rehabCards = [
+      {
+        title: "三分钟去除工位怨气",
+        description: "建议起身接水，顺便假装在认真思考公司战略。"
+      },
+      {
+        title: "KPI 代谢贴",
+        description: "本贴纸不可抵消绩效，但可抵消 3% 心理内耗。"
+      },
+      {
+        title: "久坐回血处方",
+        description: "站起来转肩 30 秒，你的脊柱正在偷偷给你点赞。"
+      },
+      {
+        title: "老板沉默观测术",
+        description: "当老板已读不回，建议补充蛋白质并远离群聊 10 分钟。"
+      },
+      {
+        title: "会议灵魂找回仪式",
+        description: "开完会后看一眼窗外，确认自己仍属于自然界。"
+      },
+      {
+        title: "数字游民康复通道",
+        description: "请前往有阳光、咖啡和插座的地方进行轻量复活。"
+      },
+      {
+        title: "PPT 玄学祛魅",
+        description: "承接排版、改字、救场，但不承接无意义需求膨胀。"
+      },
+      {
+        title: "班味急救包",
+        description: "今日建议：多喝水、少自责、把需求拆小一点。"
+      },
+      {
+        title: "神经系统降噪贴",
+        description: "关闭一个通知，就是给大脑打开一扇窗。"
+      }
     ];
 
     const scanSteps = [
@@ -1752,9 +1994,10 @@
       careAdvice: document.getElementById("careAdvice"),
       shareCanvas: document.getElementById("shareCanvas"),
       snapshotCanvas: document.getElementById("snapshotCanvas"),
+      shareQRCodeAsset: document.getElementById("shareQRCodeAsset"),
       shareHint: document.getElementById("shareHint"),
       easterWall: document.getElementById("easterWall"),
-      adWall: document.getElementById("adWall"),
+      rehabGrid: document.getElementById("rehabGrid"),
       detectButton: document.getElementById("detectButton"),
       targetBoxes: [...document.querySelectorAll(".target-box")]
     };
@@ -1826,7 +2069,8 @@
           video: {
             facingMode: "user",
             width: { ideal: 1280 },
-            height: { ideal: 720 }
+            height: { ideal: 720 },
+            aspectRatio: { ideal: 16 / 9 }
           },
           audio: false
         });
@@ -2205,38 +2449,22 @@
       ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
     }
 
-    function drawFakeQRCode(ctx, x, y, size, label) {
+    function drawShareQRCode(ctx, x, y, size, label) {
       roundedRect(ctx, x, y, size, size + 54, 18, "#fffaf0", "#101b2d", 6);
-      const cells = 25;
-      const gap = Math.floor((size - 36) / cells);
-      const offset = x + 18;
-      const top = y + 18;
+      const inset = 11;
+      const qrSize = size - inset * 2;
 
-      function finder(startX, startY) {
-        ctx.fillStyle = "#101b2d";
-        ctx.fillRect(offset + startX * gap, top + startY * gap, 7 * gap, 7 * gap);
-        ctx.fillStyle = "#fffaf0";
-        ctx.fillRect(offset + (startX + 1) * gap, top + (startY + 1) * gap, 5 * gap, 5 * gap);
-        ctx.fillStyle = "#101b2d";
-        ctx.fillRect(offset + (startX + 2) * gap, top + (startY + 2) * gap, 3 * gap, 3 * gap);
-      }
-
-      finder(0, 0);
-      finder(18, 0);
-      finder(0, 18);
-
-      for (let row = 0; row < cells; row++) {
-        for (let column = 0; column < cells; column++) {
-          const insideFinder =
-            (row < 8 && column < 8) ||
-            (row < 8 && column > 16) ||
-            (row > 16 && column < 8);
-          const pattern = (row * 11 + column * 7 + row * column) % 9;
-          if (!insideFinder && (pattern < 4 || (row + column) % 13 === 0)) {
-            ctx.fillStyle = pattern === 0 ? "#e9454f" : "#101b2d";
-            ctx.fillRect(offset + column * gap, top + row * gap, gap, gap);
-          }
-        }
+      if (elements.shareQRCodeAsset.complete && elements.shareQRCodeAsset.naturalWidth) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(elements.shareQRCodeAsset, x + inset, y + inset, qrSize, qrSize);
+        ctx.restore();
+      } else {
+        roundedRect(ctx, x + inset, y + inset, qrSize, qrSize, 8, "#fffaf0", "#101b2d", 3);
+        ctx.fillStyle = "#17345f";
+        ctx.font = "1000 17px PingFang SC, Microsoft YaHei, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("二维码加载中", x + size / 2, y + size / 2 + 6);
       }
 
       ctx.fillStyle = "#17345f";
@@ -2331,7 +2559,7 @@
       ctx.font = "900 22px PingFang SC, Microsoft YaHei, sans-serif";
       wrapCanvasText(ctx, "回血建议：" + buildCareAdvice(analysis), 111, 1012, 405, 30, 2);
 
-      drawFakeQRCode(ctx, 606, 840, 177, "扫码检测你的班味");
+      drawShareQRCode(ctx, 606, 840, 177, "扫码检测你的班味");
 
       elements.shareHint.textContent = "分享卡已刷新：评级 " + analysis.rating + "，牛马指数 " + analysis.scores.niumaIndex + "。";
     }
@@ -2347,22 +2575,34 @@
       updateDialogue("PNG 补给包已打包，适合发给同样闻到班味的人。");
     }
 
+    function handleSelfieShare() {
+      if (!currentAnalysis) {
+        elements.scannerLog.textContent = "SHARE WAIT // 请先完成检测，再生成分享卡片。";
+        updateDialogue("请先完成检测，再生成分享卡片。");
+        return;
+      }
+
+      if (!cameraStream) {
+        elements.scannerLog.textContent = "SHARE FALLBACK // 镜头未开启，使用本地待机画面生成海报。";
+      }
+
+      if (!latestSelfie) {
+        captureCameraFrame();
+      }
+
+      generateShareCard(false);
+      updateDialogue("自拍分享已生成，工位样本和回血建议都装进海报了。");
+    }
+
     function toggleEasterEgg(forceState) {
       const open = typeof forceState === "boolean" ? forceState : !elements.easterWall.classList.contains("open");
       elements.easterWall.classList.toggle("open", open);
       elements.easterWall.setAttribute("aria-hidden", String(!open));
       if (open) {
-        elements.adWall.innerHTML = uniquePicks(easterAds, 9).map((ad, index) => {
-          const footers = [
-            "非医学产品，纯属打工幻觉。",
-            "工位边贴边好笑。",
-            "本贴纸可抵御少量 KPI。",
-            "扫码后先给自己放风。",
-            "建议配合下楼晒太阳。"
-          ];
-          return "<article class=\"sticker\"><strong>" + ad + "</strong><small>" + footers[index % footers.length] + "</small></article>";
+        elements.rehabGrid.innerHTML = uniquePicks(rehabCards, 9).map((card) => {
+          return "<article class=\"sticker\"><strong>" + card.title + "</strong><small>" + card.description + "</small></article>";
         }).join("");
-        updateDialogue("你发现了广告墙：高价回收废弃 KPI。");
+        updateDialogue("你发现了牛马身心康复中心，隐藏 NPC 建议先给神经系统降噪。");
       }
     }
 
@@ -2390,7 +2630,7 @@
       elements.ratingBadge.textContent = "等待建档";
       elements.spaceAdviceList.innerHTML = "<li>等待探测工位弱点</li>";
       elements.careAdvice.textContent = "饮食、运动、音乐与休息补给将在检测后刷新。";
-      elements.shareHint.textContent = "海报会装入当前镜头、班味评级、今日回血建议与二维码占位。";
+      elements.shareHint.textContent = "海报会装入当前镜头、班味评级、今日回血建议与二维码。";
       elements.scannerHeadline.textContent = "数据已重置，随时开启下一次办公室探险。";
       elements.scannerLog.textContent = "RESET // 图鉴缓存已清空。";
       updateDialogue("你使用了重置键，班味回到未知状态。");
@@ -2412,18 +2652,13 @@
       ctx.fillStyle = "#d6efff";
       ctx.font = "900 25px PingFang SC, Microsoft YaHei, sans-serif";
       ctx.fillText("镜头 + 班味评级 + 回血建议", canvas.width / 2, 540);
-      drawFakeQRCode(ctx, 345, 613, 210, "扫码检测你的班味");
+      drawShareQRCode(ctx, 345, 613, 210, "扫码检测你的班味");
       ctx.textAlign = "left";
     }
 
     document.getElementById("cameraButton").addEventListener("click", initCamera);
     document.getElementById("detectButton").addEventListener("click", runDetection);
-    document.getElementById("selfieButton").addEventListener("click", () => {
-      captureCameraFrame();
-      generateShareCard(false);
-      updateDialogue("自拍捕获成功，工位样本已封进分享卡。");
-    });
-    document.getElementById("shareButton").addEventListener("click", () => generateShareCard(true));
+    document.getElementById("selfieShareButton").addEventListener("click", handleSelfieShare);
     document.getElementById("downloadButton").addEventListener("click", downloadShareCard);
     document.getElementById("eggButton").addEventListener("click", () => toggleEasterEgg());
     document.getElementById("wallCloseButton").addEventListener("click", () => toggleEasterEgg(false));
@@ -2436,6 +2671,13 @@
     });
     window.addEventListener("beforeunload", () => {
       if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
+    });
+    elements.shareQRCodeAsset.addEventListener("load", () => {
+      if (currentAnalysis) {
+        generateShareCard(false);
+      } else {
+        drawShareStandby();
+      }
     });
 
     drawShareStandby();
